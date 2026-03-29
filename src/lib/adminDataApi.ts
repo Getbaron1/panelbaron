@@ -4,8 +4,8 @@ const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://a
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
 
-const DEFAULT_ESTABLISHMENT_PATHS = ['/admin/establishments', '/establishments']
-const DEFAULT_ORDER_PATHS = ['/admin/orders', '/orders']
+const DEFAULT_ESTABLISHMENT_PATHS = ['/public/establishments', '/admin/establishments', '/establishments']
+const DEFAULT_ORDER_PATHS = ['/public/orders', '/admin/orders', '/orders']
 
 function readPathsFromEnv(envValue: string | undefined, fallback: string[]) {
   const paths = (envValue || '')
