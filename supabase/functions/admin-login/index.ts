@@ -38,18 +38,47 @@ serve(async (req) => {
       .eq("email", normalizedEmail)
       .maybeSingle();
 
-    if (error || !data || data.ativo !== true || !data.senha_hash) {
+    if (error) {
+      console.error("DB Error:", error);
       return new Response(
-        JSON.stringify({ ok: false, message: "Credenciais inválidas" }),
+        JSON.stringify({ ok: false, message: "Erro de banco de dados", details: error }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!data) {
+      return new Response(
+        JSON.stringify({ ok: false, message: "Usuário não encontrado com este email" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const validHash = await bcrypt.compare(String(password), data.senha_hash);
-    const validLegacy = data.senha_hash === String(password);
+    const isAtivo = data.ativo === true || String(data.ativo).toLowerCase() === "true" || data.ativo === 1;
+    if (!isAtivo) {
+      return new Response(
+        JSON.stringify({ ok: false, message: "Usuário inativo", debugAtivo: data.ativo }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!data.senha_hash) {
+      return new Response(
+        JSON.stringify({ ok: false, message: "Usuário não possui senha configurada" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    let validHash = false;
+    try {
+      validHash = await bcrypt.compare(String(password), String(data.senha_hash));
+    } catch (bcError) {
+      console.warn("Bcrypt compare fail (probably plaintext format):", bcError);
+    }
+
+    const validLegacy = String(data.senha_hash).trim() === String(password).trim();
     if (!validHash && !validLegacy) {
       return new Response(
-        JSON.stringify({ ok: false, message: "Credenciais inválidas" }),
+        JSON.stringify({ ok: false, message: "Senha incorreta" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
