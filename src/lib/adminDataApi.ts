@@ -1,9 +1,6 @@
 import type { Establishment } from '@/integrations/supabase/types'
 
-const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1'
-const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
-
+const ADMIN_API_PROXY_PATH = import.meta.env.VITE_ADMIN_API_PROXY_PATH || '/.netlify/functions/admin-api-proxy'
 const DEFAULT_ESTABLISHMENT_PATHS = ['/admin/establishments', '/establishments']
 const DEFAULT_ORDER_PATHS = ['/admin/orders', '/orders']
 
@@ -44,9 +41,8 @@ export interface AdminOrder {
 }
 
 async function requestJson(path: string, search?: Record<string, string | number | undefined>) {
-  const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
-  const cleanPath = path.replace(/^\/+/, '')
-  const url = new URL(`${cleanBase}/${cleanPath}`)
+  const url = new URL(ADMIN_API_PROXY_PATH, window.location.origin)
+  url.searchParams.set('path', path)
 
   Object.entries(search || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -54,16 +50,9 @@ async function requestJson(path: string, search?: Record<string, string | number
     }
   })
 
+  // Headers adicionais que o proxy possa precisar
   const headers: Record<string, string> = {
     Accept: 'application/json',
-  }
-
-  if (API_TOKEN) {
-    headers['Authorization'] = `Bearer ${API_TOKEN}`
-  }
-  
-  if (API_KEY) {
-    headers['x-api-key'] = API_KEY
   }
 
   const response = await fetch(url.toString(), {
