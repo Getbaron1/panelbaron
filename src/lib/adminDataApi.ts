@@ -58,9 +58,19 @@ async function requestJson(path: string, search?: Record<string, string | number
     Accept: 'application/json',
   }
 
+
+
   if (API_TOKEN) {
     headers['Authorization'] = `Bearer ${API_TOKEN}`
   }
+  
+  try {
+    const { supabase } = await import('@/integrations/supabase/client')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`
+    }
+  } catch (e) {}
   
   if (API_KEY) {
     headers['x-api-key'] = API_KEY
