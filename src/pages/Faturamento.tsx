@@ -58,6 +58,8 @@ interface Withdrawal {
   establishment_id: string
   establishment?: { id: string; name: string }
   amount: number
+  requested_amount?: number
+  pix_key?: string | null
   requested_at: string
   paid_at?: string
   status: 'pending' | 'paid' | 'rejected'
@@ -125,7 +127,7 @@ export default function Faturamento() {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [revenueData, setRevenueData] = useState<any[]>([])
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(MOCK_WITHDRAWALS)
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all')
@@ -139,6 +141,14 @@ export default function Faturamento() {
 
   useEffect(() => {
     loadData()
+  }, [periodo])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      loadData()
+    }, 30000)
+
+    return () => window.clearInterval(intervalId)
   }, [periodo])
 
   async function loadData() {
@@ -195,7 +205,7 @@ export default function Faturamento() {
   // Função para calcular valor líquido (descontando taxa de cartão 4.7% e PIX 2%)
   const calculateNetRevenue = (w: Withdrawal) => {
     // Valores padrão se não existirem
-    return 5000
+    return Number(w.requested_amount ?? w.amount ?? 0)
   }
   
   // Atualizar withdrawals com valores calculados
@@ -398,7 +408,10 @@ export default function Faturamento() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-sm font-semibold text-primary">
-                      {formatCurrency(withdrawal.amount)}
+                      {formatCurrency(withdrawal.requested_amount ?? withdrawal.amount ?? 0)}
+                    </td>
+                    <td className="py-3 px-4 text-sm">
+                      {withdrawal.pix_key || '-'}
                     </td>
                     <td className="py-3 px-4 text-sm">
                       {new Date(withdrawal.requested_at).toLocaleString('pt-BR', {

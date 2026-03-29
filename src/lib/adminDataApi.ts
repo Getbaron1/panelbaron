@@ -56,6 +56,22 @@ export interface AdminTopProduct {
   revenue: number
 }
 
+export interface AdminWithdrawal {
+  id: string
+  establishment_id: string
+  establishment?: { id: string; name: string } | null
+  amount: number
+  requested_amount?: number
+  pix_key?: string | null
+  requested_at: string
+  paid_at?: string | null
+  status: 'pending' | 'paid' | 'rejected'
+  proof_url?: string | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
@@ -281,6 +297,40 @@ function normalizeProduct(raw: any): Product {
   }
 }
 
+function normalizeWithdrawal(raw: any): AdminWithdrawal {
+  const establishmentId = toStringValue(raw?.establishment_id, raw?.store_id, raw?.estabelecimento_id)
+  const establishmentName = toStringValue(
+    raw?.establishment?.name,
+    raw?.store?.name,
+    raw?.establishment_name,
+    raw?.store_name,
+    raw?.nome_estabelecimento
+  )
+  const requestedAt = raw?.requested_at || raw?.created_at || raw?.createdAt || new Date().toISOString()
+  const status = toStringValue(raw?.status, raw?.state, 'pending').toLowerCase()
+
+  return {
+    id: toStringValue(raw?.id, raw?.uuid, raw?._id),
+    establishment_id: establishmentId,
+    establishment: establishmentId || establishmentName
+      ? {
+          id: establishmentId,
+          name: establishmentName || establishmentId,
+        }
+      : null,
+    amount: toNumber(raw?.amount ?? raw?.requested_amount ?? raw?.valor ?? raw?.value, 0),
+    requested_amount: toNumber(raw?.requested_amount ?? raw?.amount ?? raw?.valor ?? raw?.value, 0),
+    pix_key: toStringValue(raw?.pix_key, raw?.pixKey, raw?.chave_pix, raw?.customer_pix_key) || null,
+    requested_at: requestedAt,
+    paid_at: raw?.paid_at || raw?.updated_at || null,
+    status: status === 'paid' || status === 'rejected' ? status : 'pending',
+    proof_url: toStringValue(raw?.proof_url, raw?.receipt_url, raw?.comprovante_url) || null,
+    notes: toStringValue(raw?.notes, raw?.observation, raw?.observacao) || null,
+    created_at: raw?.created_at || requestedAt,
+    updated_at: raw?.updated_at || raw?.paid_at || requestedAt,
+  }
+}
+
 export async function fetchAdminEstablishments(): Promise<Establishment[]> {
   try {
     // Pode haver rota `/public/establishments` que lista todos?
@@ -416,7 +466,7 @@ export async function createAdminWithdrawal(establishmentId: string, walletId: s
   }
 }
 
-export async function fetchAdminWithdrawals(establishmentId?: string, limit: number = 20) {
+export async function fetchAdminWithdrawals(establishmentId?: string, limit: number = 20): Promise<AdminWithdrawal[]> {
   try {
     // GET /v1/financial/withdrawals?establishment_id=<uuid>&limit=20
     const searchParams: Record<string, any> = { limit }
@@ -425,6 +475,8 @@ export async function fetchAdminWithdrawals(establishmentId?: string, limit: num
     }
     const data = await requestJson('/financial/withdrawals', searchParams)
     return pickArray(data)
+      .map(normalizeWithdrawal)
+      .filter(item => item.id)
   } catch (error) {
     console.warn('Admin API withdrawals unavailable:', error)
     return []
