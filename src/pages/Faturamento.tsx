@@ -41,6 +41,7 @@ import {
   updateWithdrawalStatus,
   uploadProofFile
 } from '@/lib/supabase'
+import { fetchAdminWallet } from '@/lib/adminDataApi'
 import {
   AreaChart,
   Area,
@@ -132,6 +133,8 @@ export default function Faturamento() {
   const [showModal, setShowModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [detailsWithdrawal, setDetailsWithdrawal] = useState<Withdrawal | null>(null)
+  const [walletValue, setWalletValue] = useState<number | null>(null)
+  const [walletLoading, setWalletLoading] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
 
   useEffect(() => {
@@ -453,9 +456,24 @@ export default function Faturamento() {
                           </button>
                         )}
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             setDetailsWithdrawal(withdrawal)
                             setShowDetailsModal(true)
+                            setWalletLoading(true)
+                            setWalletValue(null)
+                            try {
+                              const wallet = await fetchAdminWallet(withdrawal.establishment_id)
+                              if (wallet) {
+                                const val = wallet.requested_amount ?? wallet.amount ?? wallet.balance ?? wallet.valor ?? wallet.withdrawal_amount ?? null
+                                if (val !== null) setWalletValue(Number(val))
+                                else if (typeof wallet === 'number') setWalletValue(wallet)
+                                else if (wallet.data && typeof wallet.data === 'number') setWalletValue(wallet.data)
+                              }
+                            } catch (e) {
+                              console.error(e)
+                            } finally {
+                              setWalletLoading(false)
+                            }
                           }}
                           className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
                           title="Ver Detalhes"
@@ -608,14 +626,22 @@ export default function Faturamento() {
                 <h3 className="font-semibold mb-4">Cálculo de Faturamento</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2">
-                    <span className="text-muted-foreground">Valor Solicitado</span>
-                    <span className="font-semibold">{formatCurrency(detailsWithdrawal.amount)}</span>
+                    <span className="text-muted-foreground">Valor Solicitado (App Cliente)</span>
+                    <span className="font-semibold">
+                      {walletLoading 
+                        ? <Loader2 className="w-4 h-4 animate-spin" /> 
+                        : (walletValue !== null ? formatCurrency(walletValue) : formatCurrency(detailsWithdrawal.amount))}
+                    </span>
                   </div>
                   <div className="border-t border-border/30"></div>
                   
                   <div className="flex justify-between items-center py-3 bg-primary/5 px-3 rounded">
                     <span className="font-semibold">Total a Receber</span>
-                    <span className="text-xl font-bold text-primary">{formatCurrency(detailsWithdrawal.amount)}</span>
+                    <span className="text-xl font-bold text-primary">
+                      {walletLoading 
+                        ? <Loader2 className="w-5 h-5 animate-spin" /> 
+                        : (walletValue !== null ? formatCurrency(walletValue) : formatCurrency(detailsWithdrawal.amount))}
+                    </span>
                   </div>
                 </div>
               </div>

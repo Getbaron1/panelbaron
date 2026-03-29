@@ -264,3 +264,13 @@ export async function fetchAdminOrders(establishmentId?: string): Promise<AdminO
     return []
   }
 }
+
+export async function fetchAdminWallet(establishmentId: string) {
+  try {
+    const data = await requestJson('/financial/wallet', { establishment_id: establishmentId })
+    return data
+  } catch (error) {
+    console.error(`Admin API wallet failed for establishment ${establishmentId}:`, error)
+    return null
+  }
+}
