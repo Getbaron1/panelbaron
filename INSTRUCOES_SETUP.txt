@@ -1,0 +1,39 @@
+# 🚀 SETUP DO MÓDULO COMERCIAL - SUPABASE
+
+## Passo 1: Executar SQL de Setup Completo
+
+Abra o **SQL Editor** do Supabase e execute TODO o conteúdo de `SETUP_COMERCIAL_COMPLETO.sql`
+
+Este arquivo:
+✅ Cria todas as tabelas (leads, lead_contacts, meetings, message_templates, commissions, etc)
+✅ Cria admin_users se não existir
+✅ Adiciona policies de segurança (RLS)
+✅ Insere 5 templates de mensagem padrão
+✅ Insere dados de teste
+
+## Passo 2: Verificar se funcionou
+
+Na última parte do SQL, você verá:
+- Lista de tabelas criadas
+- Templates de mensagem
+- Leads criados
+- Admin users
+
+Se tudo aparecer OK, você está pronto!
+
+## Passo 3: Usar na aplicação
+
+A aplicação já está configurada:
+- Rota: `/comercial`
+- Componentes: QuickActionsBar, LeadsList, LeadTimeline, etc
+- Hook: useCommercialActions
+
+Acesse `http://localhost:5173/comercial` e comece a usar!
+
+## Dúvidas?
+
+Se receber erro "relation does not exist", significa que:
+1. O SQL não foi executado completamente
+2. Há erro de permissões
+
+Verifique a saída do SQL e veja qual erro específico apareceu.
