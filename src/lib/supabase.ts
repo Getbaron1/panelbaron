@@ -190,7 +190,6 @@ export {
   getOrderById,
   getOrderItems,
   updateOrderStatus,
-  getProducts,
   getProductById,
   updateProduct,
   deleteProduct,
