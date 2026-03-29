@@ -75,10 +75,23 @@ serve(async (req) => {
       console.warn("Bcrypt compare fail (probably plaintext format):", bcError);
     }
 
-    const validLegacy = String(data.senha_hash).trim() === String(password).trim();
+    // Remover possíveis aspas duplas de importação CSV e espaços extras
+    const cleanedHash = String(data.senha_hash).trim().replace(/^"|"$/g, '');
+    const cleanedPassword = String(password).trim();
+
+    const validLegacy = cleanedHash === cleanedPassword;
     if (!validHash && !validLegacy) {
       return new Response(
-        JSON.stringify({ ok: false, message: "Senha incorreta" }),
+        JSON.stringify({ 
+          ok: false, 
+          message: "Senha incorreta",
+          debug: {
+            digitado: cleanedPassword,
+            banco: cleanedHash,
+            tamanhoDigitado: cleanedPassword.length,
+            tamanhoBanco: cleanedHash.length
+          }
+        }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
