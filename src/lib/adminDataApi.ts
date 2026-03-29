@@ -274,3 +274,13 @@ export async function fetchAdminWallet(establishmentId: string) {
     return null
   }
 }
+
+export async function fetchAdminWithdrawals(establishmentId?: string) {
+  try {
+    const data = await requestJson('/financial/withdrawals', establishmentId ? { establishment_id: establishmentId } : undefined)
+    return pickArray(data)
+  } catch (error) {
+    console.warn('Admin API withdrawals unavailable:', error)
+    return []
+  }
+}

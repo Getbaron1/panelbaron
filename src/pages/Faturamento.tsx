@@ -41,7 +41,7 @@ import {
   updateWithdrawalStatus,
   uploadProofFile
 } from '@/lib/supabase'
-import { fetchAdminWallet } from '@/lib/adminDataApi'
+import { fetchAdminWallet, fetchAdminWithdrawals } from '@/lib/adminDataApi'
 import {
   AreaChart,
   Area,
@@ -149,7 +149,7 @@ export default function Faturamento() {
       const [statsData, revenue, withdrawalsData] = await Promise.all([
         getDashboardStats(),
         getRevenueByPeriod(periodo),
-        getWithdrawals(),
+        fetchAdminWithdrawals(),
       ])
       
       setStats(statsData)
