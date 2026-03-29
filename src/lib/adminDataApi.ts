@@ -3,8 +3,6 @@ import type { Establishment, Product } from '@/integrations/supabase/types'
 // Em produção (Netlify), usar o proxy /api para evitar CORS.
 // Em dev local, usar URL direta da API.
 const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1'
-const ADMIN_API_PROXY_PATH = import.meta.env.VITE_ADMIN_API_PROXY_PATH || '/.netlify/functions/admin-api-proxy'
-const SHOULD_USE_PROXY = typeof window !== 'undefined'
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
 
@@ -63,13 +61,7 @@ async function requestJson(path: string, search?: Record<string, string | number
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
   const rawUrl = `${cleanBase}/${cleanPath}`
 
-  const url = SHOULD_USE_PROXY
-    ? new URL(ADMIN_API_PROXY_PATH, window.location.origin)
-    : new URL(rawUrl)
-
-  if (SHOULD_USE_PROXY) {
-    url.searchParams.set('path', `/${cleanPath}`)
-  }
+  const url = new URL(rawUrl)
 
   Object.entries(search || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
