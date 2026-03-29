@@ -21,98 +21,38 @@ export const supabase = createClient<any>(SAFE_SUPABASE_URL, SAFE_SUPABASE_ANON_
 // ==================== ESTABLISHMENTS ====================
 
 export async function getEstablishments() {
-  try {
-    const apiData = await fetchAdminEstablishments()
-    if (apiData.length > 0) return apiData
-  } catch (apiError) {
-    console.warn('Admin API establishments unavailable, fallback to Supabase:', apiError)
-  }
-
-  const { data, error } = await supabase
-    .from('establishments')
-    .select('*')
-    .order('created_at', { ascending: false })
-  
-  if (error) throw error
-  return data as Establishment[] || []
+  const apiData = await fetchAdminEstablishments()
+  return apiData || []
 }
 
 export async function getEstablishmentById(id: string) {
-  try {
-    const apiData = await fetchAdminEstablishmentById(id)
-    if (apiData) return apiData
-  } catch (apiError) {
-    console.warn('Admin API establishment unavailable, fallback to Supabase:', apiError)
-  }
-
-  const { data, error } = await supabase
-    .from('establishments')
-    .select('*')
-    .eq('id', id)
-    .single()
-  
-  if (error) throw error
-  return data
+  const apiData = await fetchAdminEstablishmentById(id)
+  return apiData
 }
 
 export async function getEstablishmentBySlug(slug: string) {
-  const { data, error } = await supabase
-    .from('establishments')
-    .select('*')
-    .eq('slug', slug)
-    .single()
-  
-  if (error) throw error
-  return data
+  // If the API supports getting by slug, we should use it. For now, since it's admin,
+  // we can fetch all and filter, or keep Supabase if not strictly needed.
+  // But to avoid fallback conflicts, let's fetch all and filter by slug.
+  const all = await fetchAdminEstablishments()
+  return all.find(e => e.slug === slug) || null
 }
 
 export async function updateEstablishment(id: string, updates: Partial<Database['public']['Tables']['establishments']['Update']>) {
-  const { data, error } = await supabase
-    .from('establishments')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-  
-  if (error) throw error
-  return data
+  // TODO: implement API PUT
+  throw new Error("API PATCH/PUT para estabelecimentos ainda não configurada no frontend")
 }
 
 export async function deleteEstablishment(id: string) {
-  const { error } = await supabase
-    .from('establishments')
-    .delete()
-    .eq('id', id)
-  
-  if (error) throw error
+  // TODO: implement API DELETE
+  throw new Error("API DELETE para estabelecimentos ainda não configurada no frontend")
 }
 
 // ==================== ORDERS ====================
 
 export async function getOrders(establishmentId?: string) {
-  try {
-    const apiData = await fetchAdminOrders(establishmentId)
-    if (apiData.length > 0 || establishmentId) return apiData
-  } catch (apiError) {
-    console.warn('Admin API orders unavailable, fallback to Supabase:', apiError)
-  }
-
-  let query = supabase
-    .from('orders')
-    .select(`
-      *,
-      establishment:establishments(id, name, slug, logo_url)
-    `)
-    .order('created_at', { ascending: false })
-  
-  if (establishmentId) {
-    query = query.eq('establishment_id', establishmentId)
-  }
-  
-  const { data, error } = await query
-  
-  if (error) throw error
-  return data
+  const apiData = await fetchAdminOrders(establishmentId)
+  return apiData || []
 }
 
 export async function getOrderById(id: string) {
