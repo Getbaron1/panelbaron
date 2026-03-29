@@ -43,7 +43,7 @@ export interface AdminOrder {
   establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'logo_url'> | null
 }
 
-async function requestJson(path: string, search?: Record<string, string | number | undefined>) {
+async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
   let cleanPath = path.replace(/^\/+/, '')
   if (!cleanPath.endsWith('/')) {
@@ -57,11 +57,10 @@ async function requestJson(path: string, search?: Record<string, string | number
     }
   })
 
+  // Evitar charset com application/json
   const headers: Record<string, string> = {
     Accept: 'application/json',
   }
-
-
 
   if (API_TOKEN) {
     headers['Authorization'] = `Bearer ${API_TOKEN}`
@@ -79,9 +78,21 @@ async function requestJson(path: string, search?: Record<string, string | number
     headers['x-api-key'] = API_KEY
   }
 
-  const response = await fetch(url.toString(), {
+  const fetchOptions: RequestInit = {
+    method: options?.method || 'GET',
     headers,
-  })
+  }
+
+  if (options?.body) {
+    if (typeof options.body === 'object') {
+      fetchOptions.body = JSON.stringify(options.body)
+      headers['Content-Type'] = 'application/json; charset=utf-8'
+    } else {
+      fetchOptions.body = options.body
+    }
+  }
+
+  const response = await fetch(url.toString(), fetchOptions)
 
   if (!response.ok) {
     let details = ''
@@ -238,6 +249,9 @@ function normalizeOrder(raw: any, establishmentsMap?: Map<string, Establishment>
 
 export async function fetchAdminEstablishments(): Promise<Establishment[]> {
   try {
+    // Pode haver rota `/public/establishments` que lista todos?
+    // A instrução diz: "No backend atual NÃO existe rota de listagem geral tipo GET /v1/establishments?status=active."
+    // Mas para master admin dashboard mantemos fallback ou buscamos `/public/establishments` se a API permitir.
     const items = await fetchFirstArray(ESTABLISHMENT_PATHS)
     return items.map(normalizeEstablishment).filter(item => item.id)
   } catch (error) {
@@ -248,11 +262,20 @@ export async function fetchAdminEstablishments(): Promise<Establishment[]> {
 
 export async function fetchAdminEstablishmentById(id: string): Promise<Establishment | null> {
   try {
-    const detailPaths = ESTABLISHMENT_PATHS.map(path => `${path}/${id}`)
-    const item = await fetchFirstObject(detailPaths)
+    const item = await requestJson(`/public/establishments/${id}`)
     return item ? normalizeEstablishment(item) : null
   } catch (error) {
     console.warn(`Admin API establishment ${id} unavailable:`, error)
+    return null
+  }
+}
+
+export async function fetchOwnerEstablishment(ownerId: string): Promise<Establishment | null> {
+  try {
+    const item = await requestJson(`/establishments/owner/${ownerId}`)
+    return item ? normalizeEstablishment(item) : null
+  } catch (error) {
+    console.warn(`Admin API owner establishment ${ownerId} unavailable:`, error)
     return null
   }
 }
@@ -280,7 +303,8 @@ export async function fetchAdminOrders(establishmentId?: string): Promise<AdminO
 
 export async function fetchAdminWallet(establishmentId: string) {
   try {
-    const data = await requestJson('/public/financial/wallet', { establishment_id: establishmentId })
+    // Rota EXATA da doc: GET /v1/financial/wallet?establishment_id=<uuid>&auto_backfill=true
+    const data = await requestJson('/financial/wallet', { establishment_id: establishmentId, auto_backfill: 'true' })
     return data
   } catch (error) {
     console.error(`Admin API wallet failed for establishment ${establishmentId}:`, error)
@@ -288,12 +312,96 @@ export async function fetchAdminWallet(establishmentId: string) {
   }
 }
 
-export async function fetchAdminWithdrawals(establishmentId?: string) {
+export async function createAdminWithdrawal(establishmentId: string, walletId: string, amount: number, pixKey: string, pixKeyType: string) {
+  if (!establishmentId || !walletId) {
+    throw new Error('Saque: sempre vincular establishment_id + wallet_id.')
+  }
+  
+  // Validar saldo disponível antes (Regra: Bloquear saque sem saldo disponível)
+  const wallet = await fetchAdminWallet(establishmentId);
+  const availableBalance = wallet?.available_balance || wallet?.balance || 0;
+  if (amount > availableBalance || availableBalance <= 0) {
+    throw new Error('Bloqueado: Saque sem saldo disponível.')
+  }
+  
   try {
-    const data = await requestJson('/public/financial/withdrawals', establishmentId ? { establishment_id: establishmentId } : undefined)
+    // POST /v1/wallet/withdrawals
+    const data = await requestJson('/wallet/withdrawals', undefined, {
+      method: 'POST',
+      body: {
+        establishment_id: establishmentId,
+        wallet_id: walletId,
+        amount,
+        pix_key: pixKey,
+        pix_key_type: pixKeyType
+      }
+    })
+    return data
+  } catch (error) {
+    console.error('Error creating withdrawal via API:', error)
+    throw error
+  }
+}
+
+export async function fetchAdminWithdrawals(establishmentId?: string, limit: number = 20) {
+  try {
+    // GET /v1/financial/withdrawals?establishment_id=<uuid>&limit=20
+    const searchParams: Record<string, any> = { limit }
+    if (establishmentId) {
+      searchParams.establishment_id = establishmentId
+    }
+    const data = await requestJson('/financial/withdrawals', searchParams)
     return pickArray(data)
   } catch (error) {
     console.warn('Admin API withdrawals unavailable:', error)
     return []
+  }
+}
+
+export async function createRefundAPI(orderId: string, establishmentId: string, reason: string, requesterWaiterId: string | null = null, requesterWaiterName: string | null = null) {
+  if (!orderId || !establishmentId) {
+    throw new Error('Estorno cliente: sempre vincular order_id + establishment_id.')
+  }
+  try {
+    // POST /v1/refunds/orders/:id
+    return await requestJson(`/refunds/orders/${orderId}`, undefined, {
+      method: 'POST',
+      body: {
+        order_id: orderId,
+        establishment_id: establishmentId,
+        requester_waiter_id: requesterWaiterId,
+        requester_waiter_name: requesterWaiterName,
+        reason
+      }
+    })
+  } catch (error) {
+    console.error(`Error creating refund for order ${orderId}:`, error)
+    throw error
+  }
+}
+
+export async function fetchRefundsAPI(establishmentId: string, orderIds: string) {
+  try {
+    // GET /v1/refunds?establishment_id=<uuid>&order_ids=<id1,id2,...>
+    return await requestJson('/refunds', { establishment_id: establishmentId, order_ids: orderIds })
+  } catch (error) {
+    console.warn('Error fetching refunds:', error)
+    return []
+  }
+}
+
+export async function orderIssueActionAPI(orderId: string, actionBody: any) {
+  if (actionBody.action === 'request_pix_refund' && !actionBody.pix_key) {
+    throw new Error('Bloquear ação de PIX: pix_key vazio.')
+  }
+  try {
+    // POST /v1/order-issues/:orderId/actions
+    return await requestJson(`/order-issues/${orderId}/actions`, undefined, {
+      method: 'POST',
+      body: actionBody
+    })
+  } catch (error) {
+    console.error(`Error on order issue action for order ${orderId}:`, error)
+    throw error
   }
 }
