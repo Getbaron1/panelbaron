@@ -49,7 +49,13 @@ export interface AdminOrder {
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
-  const url = new URL(`${cleanBase}/${cleanPath}`)
+  const rawUrl = `${cleanBase}/${cleanPath}`
+
+  // Se a URL for relativa (/api/...), precisamos de uma base absoluta para new URL()
+  const isRelative = rawUrl.startsWith('/')
+  const url = isRelative
+    ? new URL(rawUrl, window.location.origin)
+    : new URL(rawUrl)
 
   Object.entries(search || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {

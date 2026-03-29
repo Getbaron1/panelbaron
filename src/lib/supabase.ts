@@ -1,9 +1,12 @@
 import type { Database, Establishment } from '@/integrations/supabase/types'
 import {
   supabase,
+  getEstablishments as _getEstablishments,
+  getEstablishmentById as _getEstablishmentById,
   getEstablishmentBySlug,
   updateEstablishment,
   deleteEstablishment,
+  getOrders as _getOrders,
   getOrderById,
   getOrderItems,
   updateOrderStatus,
@@ -22,24 +25,21 @@ import {
   getAuditLogsByWithdrawal,
   uploadProofFile,
 } from '@/integrations/supabase/client'
-import { fetchAdminEstablishmentById, fetchAdminEstablishments, fetchAdminOrders } from '@/lib/adminDataApi'
 
 // Re-exportamos a instância ÚNICA do supabase (evita Multiple GoTrueClient)
 export { supabase }
 
+// Delegates diretos para o client.ts (que usa Supabase)
 export async function getEstablishments() {
-  const apiData = await fetchAdminEstablishments()
-  return apiData || []
+  return _getEstablishments()
 }
 
 export async function getEstablishmentById(id: string) {
-  const apiData = await fetchAdminEstablishmentById(id)
-  return apiData
+  return _getEstablishmentById(id)
 }
 
 export async function getOrders(establishmentId?: string) {
-  const apiData = await fetchAdminOrders(establishmentId)
-  return apiData || []
+  return _getOrders(establishmentId)
 }
 
 export async function getDashboardStats() {

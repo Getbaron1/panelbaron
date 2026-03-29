@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database, Establishment } from './types'
-import { fetchAdminEstablishmentById, fetchAdminEstablishments, fetchAdminOrders } from '@/lib/adminDataApi'
 
 // Usando variáveis de ambiente do Netlify ou fallback para as chaves fornecidas
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hyuxedgiahkynvozswca.supabase.co'
@@ -17,42 +16,84 @@ export const supabase = createClient<any>(SAFE_SUPABASE_URL, SAFE_SUPABASE_ANON_
 })
 
 // Funções de API para o Painel Admin
+// NOTA: A API GetBaron NÃO possui rota de listagem geral de establishments/orders.
+// Usamos Supabase diretamente para listar. A API GetBaron é usada apenas para:
+// - Wallet, Withdrawals, Refunds, Order Issues (operações financeiras)
 
-// ==================== ESTABLISHMENTS ====================
+// ==================== ESTABLISHMENTS (via Supabase) ====================
 
 export async function getEstablishments() {
-  const apiData = await fetchAdminEstablishments()
-  return apiData || []
+  const { data, error } = await supabase
+    .from('establishments')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
 }
 
 export async function getEstablishmentById(id: string) {
-  const apiData = await fetchAdminEstablishmentById(id)
-  return apiData
+  const { data, error } = await supabase
+    .from('establishments')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 export async function getEstablishmentBySlug(slug: string) {
-  // If the API supports getting by slug, we should use it. For now, since it's admin,
-  // we can fetch all and filter, or keep Supabase if not strictly needed.
-  // But to avoid fallback conflicts, let's fetch all and filter by slug.
-  const all = await fetchAdminEstablishments()
-  return all.find(e => e.slug === slug) || null
+  const { data, error } = await supabase
+    .from('establishments')
+    .select('*')
+    .eq('slug', slug)
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 export async function updateEstablishment(id: string, updates: Partial<Database['public']['Tables']['establishments']['Update']>) {
-  // TODO: implement API PUT
-  throw new Error("API PATCH/PUT para estabelecimentos ainda não configurada no frontend")
+  const { data, error } = await supabase
+    .from('establishments')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 export async function deleteEstablishment(id: string) {
-  // TODO: implement API DELETE
-  throw new Error("API DELETE para estabelecimentos ainda não configurada no frontend")
+  const { error } = await supabase
+    .from('establishments')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
 }
 
-// ==================== ORDERS ====================
+// ==================== ORDERS (via Supabase) ====================
 
 export async function getOrders(establishmentId?: string) {
-  const apiData = await fetchAdminOrders(establishmentId)
-  return apiData || []
+  let query = supabase
+    .from('orders')
+    .select(`
+      *,
+      establishment:establishments(id, name, slug, logo_url)
+    `)
+    .order('created_at', { ascending: false })
+
+  if (establishmentId) {
+    query = query.eq('establishment_id', establishmentId)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  return data || []
 }
 
 export async function getOrderById(id: string) {
