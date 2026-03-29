@@ -1,16 +1,12 @@
-import type { Database, Establishment } from '@/integrations/supabase/types'
+import type { Database, Establishment, Order, Product } from '@/integrations/supabase/types'
 import {
   supabase,
-  getEstablishments as _getEstablishments,
-  getEstablishmentById as _getEstablishmentById,
   getEstablishmentBySlug,
   updateEstablishment,
   deleteEstablishment,
-  getOrders as _getOrders,
   getOrderById,
   getOrderItems,
   updateOrderStatus,
-  getProducts,
   getProductById,
   updateProduct,
   deleteProduct,
@@ -25,21 +21,32 @@ import {
   getAuditLogsByWithdrawal,
   uploadProofFile,
 } from '@/integrations/supabase/client'
+import {
+  fetchAdminEstablishments,
+  fetchAdminEstablishmentById,
+  fetchAdminOrders,
+  fetchAdminProducts,
+  fetchAdminTopProducts,
+} from '@/lib/adminDataApi'
 
 // Re-exportamos a instância ÚNICA do supabase (evita Multiple GoTrueClient)
 export { supabase }
 
-// Delegates diretos para o client.ts (que usa Supabase)
-export async function getEstablishments() {
-  return _getEstablishments()
+// Leituras operacionais do painel devem usar a API; Supabase fica para auth/login.
+export async function getEstablishments(): Promise<Establishment[]> {
+  return await fetchAdminEstablishments()
 }
 
-export async function getEstablishmentById(id: string) {
-  return _getEstablishmentById(id)
+export async function getEstablishmentById(id: string): Promise<Establishment | null> {
+  return await fetchAdminEstablishmentById(id)
 }
 
-export async function getOrders(establishmentId?: string) {
-  return _getOrders(establishmentId)
+export async function getOrders(establishmentId?: string): Promise<Order[]> {
+  return await fetchAdminOrders(establishmentId) as Order[]
+}
+
+export async function getProducts(establishmentId?: string): Promise<Product[]> {
+  return await fetchAdminProducts(establishmentId)
 }
 
 export async function getDashboardStats() {
@@ -122,36 +129,7 @@ export async function getRevenueByPeriod(days: number = 30) {
 }
 
 export async function getTopProducts(limit: number = 10) {
-  try {
-    const { data: orderItems, error } = await supabase
-      .from('order_items')
-      .select(`
-        product_id,
-        product_name,
-        quantity,
-        total_price
-      `)
-
-    if (error) throw error
-
-    const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {}
-
-    orderItems?.forEach(item => {
-      const key = item.product_id || item.product_name
-      if (!productSales[key]) {
-        productSales[key] = { name: item.product_name, quantity: 0, revenue: 0 }
-      }
-      productSales[key].quantity += item.quantity
-      productSales[key].revenue += item.total_price
-    })
-
-    return Object.entries(productSales)
-      .map(([id, data]) => ({ id, ...data }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, limit)
-  } catch {
-    return []
-  }
+  return await fetchAdminTopProducts(limit)
 }
 
 export async function getEstablishmentStats(establishmentId: string) {

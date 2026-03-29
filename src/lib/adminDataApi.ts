@@ -1,4 +1,4 @@
-import type { Establishment } from '@/integrations/supabase/types'
+import type { Establishment, Product } from '@/integrations/supabase/types'
 
 // Em produção (Netlify), usar o proxy /api para evitar CORS.
 // Em dev local, usar URL direta da API.
@@ -9,6 +9,8 @@ const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
 
 const DEFAULT_ESTABLISHMENT_PATHS = ['/public/establishments', '/admin/establishments', '/establishments']
 const DEFAULT_ORDER_PATHS = ['/public/orders', '/admin/orders', '/orders']
+const DEFAULT_PRODUCT_PATHS = ['/public/products', '/admin/products', '/products']
+const DEFAULT_TOP_PRODUCTS_PATHS = ['/public/top-products', '/admin/top-products', '/analytics/top-products', '/reports/top-products']
 
 function readPathsFromEnv(envValue: string | undefined, fallback: string[]) {
   const paths = (envValue || '')
@@ -21,6 +23,8 @@ function readPathsFromEnv(envValue: string | undefined, fallback: string[]) {
 
 const ESTABLISHMENT_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_ESTABLISHMENTS_PATHS, DEFAULT_ESTABLISHMENT_PATHS)
 const ORDER_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_ORDERS_PATHS, DEFAULT_ORDER_PATHS)
+const PRODUCT_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_PRODUCTS_PATHS, DEFAULT_PRODUCT_PATHS)
+const TOP_PRODUCTS_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_TOP_PRODUCTS_PATHS, DEFAULT_TOP_PRODUCTS_PATHS)
 
 type JsonRecord = Record<string, any>
 
@@ -44,6 +48,13 @@ export interface AdminOrder {
   created_at: string
   updated_at: string
   establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'logo_url'> | null
+}
+
+export interface AdminTopProduct {
+  id: string
+  name: string
+  quantity: number
+  revenue: number
 }
 
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
@@ -253,6 +264,24 @@ function normalizeOrder(raw: any, establishmentsMap?: Map<string, Establishment>
   }
 }
 
+function normalizeProduct(raw: any): Product {
+  return {
+    id: toStringValue(raw?.id, raw?.uuid, raw?._id),
+    establishment_id: toStringValue(raw?.establishment_id, raw?.estabelecimento_id, raw?.store_id),
+    category_id: toStringValue(raw?.category_id, raw?.categoria_id) || null,
+    name: toStringValue(raw?.name, raw?.nome, 'Produto sem nome'),
+    description: toStringValue(raw?.description, raw?.descricao) || null,
+    image_url: toStringValue(raw?.image_url, raw?.image, raw?.foto_url) || null,
+    price: toNumber(raw?.price ?? raw?.preco ?? raw?.valor, 0),
+    available: typeof raw?.available === 'boolean'
+      ? raw.available
+      : ['true', '1', 'available', 'active', 'ativo'].includes(toStringValue(raw?.available, raw?.status).toLowerCase()),
+    sort_order: toNumber(raw?.sort_order ?? raw?.ordem, 0),
+    created_at: raw?.created_at || raw?.createdAt || new Date().toISOString(),
+    updated_at: raw?.updated_at || raw?.updatedAt || raw?.created_at || new Date().toISOString(),
+  }
+}
+
 export async function fetchAdminEstablishments(): Promise<Establishment[]> {
   try {
     // Pode haver rota `/public/establishments` que lista todos?
@@ -303,6 +332,40 @@ export async function fetchAdminOrders(establishmentId?: string): Promise<AdminO
       .filter(item => !establishmentId || item.establishment_id === establishmentId)
   } catch (error) {
     console.warn('Admin API orders unavailable:', error)
+    return []
+  }
+}
+
+export async function fetchAdminProducts(establishmentId?: string): Promise<Product[]> {
+  try {
+    const items = await fetchFirstArray(
+      PRODUCT_PATHS,
+      establishmentId ? { establishment_id: establishmentId } : undefined
+    )
+
+    return items
+      .map(normalizeProduct)
+      .filter(item => item.id && item.establishment_id)
+  } catch (error) {
+    console.warn('Admin API products unavailable:', error)
+    return []
+  }
+}
+
+export async function fetchAdminTopProducts(limit: number = 10): Promise<AdminTopProduct[]> {
+  try {
+    const items = await fetchFirstArray(TOP_PRODUCTS_PATHS, { limit })
+    return items
+      .map((item) => ({
+        id: toStringValue(item?.id, item?.product_id, item?.uuid, item?._id),
+        name: toStringValue(item?.name, item?.product_name, item?.nome, 'Produto'),
+        quantity: toNumber(item?.quantity ?? item?.qty ?? item?.total_sold, 0),
+        revenue: toNumber(item?.revenue ?? item?.gross_revenue ?? item?.total_revenue, 0),
+      }))
+      .filter(item => item.id || item.name)
+      .slice(0, limit)
+  } catch (error) {
+    console.warn('Admin API top products unavailable:', error)
     return []
   }
 }
