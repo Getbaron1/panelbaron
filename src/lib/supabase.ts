@@ -25,8 +25,8 @@ import {
 } from '@/integrations/supabase/client'
 import { fetchAdminEstablishmentById, fetchAdminEstablishments, fetchAdminOrders } from '@/lib/adminDataApi'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://zfpkyweqrkrxttzlcqnf.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmcGt5d2VncmtyeHRtemxjcW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNTk2ODgsImV4cCI6MjA4MzczNTY4OH0.kCjKgFwFz9u9-RcryBHK_nxIq_2C2l2CvXXRbfCkDCc'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hyuxedgiahkynvozswca.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5dXhlZGdpYWhreW52b3pzd2NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDYxMDcsImV4cCI6MjA5MDMyMjEwN30.nBuy9_ob3w4rpxFEPqCOFL1nkscEB18OPRofAT-dGs4'
 const safeSupabaseUrl = supabaseUrl
 const safeSupabaseAnonKey = supabaseAnonKey
 
