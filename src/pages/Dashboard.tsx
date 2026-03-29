@@ -352,7 +352,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {!selected && (
           <KPICard
             title="Total de Estabelecimentos"
@@ -363,13 +363,7 @@ export default function Dashboard() {
             variant="highlight"
           />
         )}
-        <KPICard
-          title="Total de Pedidos"
-          value={displayStats?.totalOrders || 0}
-          trend={`${displayStats?.ordersToday || 0} hoje`}
-          trendUp={true}
-          icon={ShoppingCart}
-        />
+
         <KPICard
           title="Faturamento Total"
           value={formatCurrency(displayStats?.totalRevenue || 0)}
@@ -388,20 +382,7 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Second Row Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Ticket Médio"
-          value={formatCurrency(displayStats?.ticketMedio || 0)}
-          icon={TrendingUp}
-        />
-        <KPICard
-          title="Total de Produtos"
-          value={stats?.totalProducts || 0}
-          trend={`${stats?.availableProducts || 0} disponíveis`}
-          icon={Package}
-        />
-      </div>
+
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
