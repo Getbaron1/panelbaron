@@ -1,6 +1,9 @@
 import type { Establishment } from '@/integrations/supabase/types'
 
-const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1'
+// Em produção (Netlify), usar o proxy /api para evitar CORS.
+// Em dev local, usar URL direta da API.
+const IS_PRODUCTION = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || (IS_PRODUCTION ? '/api' : 'https://api.getbaron.com.br/v1')
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
 
@@ -45,10 +48,7 @@ export interface AdminOrder {
 
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
-  let cleanPath = path.replace(/^\/+/, '')
-  if (!cleanPath.endsWith('/')) {
-    cleanPath += '/'
-  }
+  const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
   const url = new URL(`${cleanBase}/${cleanPath}`)
 
   Object.entries(search || {}).forEach(([key, value]) => {

@@ -1,7 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
 import type { Database, Establishment } from '@/integrations/supabase/types'
 import {
-  supabase as baseSupabase,
+  supabase,
   getEstablishmentBySlug,
   updateEstablishment,
   deleteEstablishment,
@@ -25,14 +24,8 @@ import {
 } from '@/integrations/supabase/client'
 import { fetchAdminEstablishmentById, fetchAdminEstablishments, fetchAdminOrders } from '@/lib/adminDataApi'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hyuxedgiahkynvozswca.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5dXhlZGdpYWhreW52b3pzd2NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDYxMDcsImV4cCI6MjA5MDMyMjEwN30.nBuy9_ob3w4rpxFEPqCOFL1nkscEB18OPRofAT-dGs4'
-const safeSupabaseUrl = supabaseUrl
-const safeSupabaseAnonKey = supabaseAnonKey
-
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient<any>(safeSupabaseUrl, safeSupabaseAnonKey)
-  : baseSupabase
+// Re-exportamos a instância ÚNICA do supabase (evita Multiple GoTrueClient)
+export { supabase }
 
 export async function getEstablishments() {
   const apiData = await fetchAdminEstablishments()
