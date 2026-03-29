@@ -35,67 +35,18 @@ export const supabase = supabaseUrl && supabaseAnonKey
   : baseSupabase
 
 export async function getEstablishments() {
-  try {
-    const apiData = await fetchAdminEstablishments()
-    if (apiData.length > 0) return apiData
-  } catch (apiError) {
-    console.warn('Admin API establishments unavailable, fallback to Supabase:', apiError)
-  }
-
-  // Fallback para Supabase
-  const { data, error } = await supabase
-    .from('establishments')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return data || []
+  const apiData = await fetchAdminEstablishments()
+  return apiData || []
 }
 
 export async function getEstablishmentById(id: string) {
-  try {
-    const apiData = await fetchAdminEstablishmentById(id)
-    if (apiData) return apiData
-  } catch (apiError) {
-    console.warn('Admin API establishment unavailable, fallback to Supabase:', apiError)
-  }
-
-  // Fallback para Supabase
-  const { data, error } = await supabase
-    .from('establishments')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) throw error
-  return data
+  const apiData = await fetchAdminEstablishmentById(id)
+  return apiData
 }
 
 export async function getOrders(establishmentId?: string) {
-  try {
-    const apiData = await fetchAdminOrders(establishmentId)
-    if (apiData.length > 0 || establishmentId) return apiData
-  } catch (apiError) {
-    console.warn('Admin API orders unavailable, fallback to Supabase:', apiError)
-  }
-
-  // Fallback para Supabase
-  let query = supabase
-    .from('orders')
-    .select(`
-      *,
-      establishment:establishments(id, name, slug, logo_url)
-    `)
-    .order('created_at', { ascending: false })
-
-  if (establishmentId) {
-    query = query.eq('establishment_id', establishmentId)
-  }
-
-  const { data, error } = await query
-
-  if (error) throw error
-  return data || []
+  const apiData = await fetchAdminOrders(establishmentId)
+  return apiData || []
 }
 
 export async function getDashboardStats() {
