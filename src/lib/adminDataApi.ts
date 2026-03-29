@@ -2,8 +2,7 @@ import type { Establishment, Product } from '@/integrations/supabase/types'
 
 // Em produção (Netlify), usar o proxy /api para evitar CORS.
 // Em dev local, usar URL direta da API.
-const IS_PRODUCTION = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || (IS_PRODUCTION ? '/api' : 'https://api.getbaron.com.br/v1')
+const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1'
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
 
@@ -62,11 +61,7 @@ async function requestJson(path: string, search?: Record<string, string | number
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
   const rawUrl = `${cleanBase}/${cleanPath}`
 
-  // Se a URL for relativa (/api/...), precisamos de uma base absoluta para new URL()
-  const isRelative = rawUrl.startsWith('/')
-  const url = isRelative
-    ? new URL(rawUrl, window.location.origin)
-    : new URL(rawUrl)
+  const url = new URL(rawUrl)
 
   Object.entries(search || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
