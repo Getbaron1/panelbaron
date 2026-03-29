@@ -3,13 +3,15 @@ import type { Establishment, Product } from '@/integrations/supabase/types'
 // Em produção (Netlify), usar o proxy /api para evitar CORS.
 // Em dev local, usar URL direta da API.
 const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1'
+const ADMIN_API_PROXY_PATH = import.meta.env.VITE_ADMIN_API_PROXY_PATH || '/.netlify/functions/admin-api-proxy'
+const SHOULD_USE_PROXY = typeof window !== 'undefined'
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
 
-const DEFAULT_ESTABLISHMENT_PATHS = ['/public/establishments', '/admin/establishments', '/establishments']
-const DEFAULT_ORDER_PATHS = ['/public/orders', '/admin/orders', '/orders']
-const DEFAULT_PRODUCT_PATHS = ['/public/products', '/admin/products', '/products']
-const DEFAULT_TOP_PRODUCTS_PATHS = ['/public/top-products', '/admin/top-products', '/analytics/top-products', '/reports/top-products']
+const DEFAULT_ESTABLISHMENT_PATHS = ['/admin/establishments']
+const DEFAULT_ORDER_PATHS = ['/orders']
+const DEFAULT_PRODUCT_PATHS: string[] = []
+const DEFAULT_TOP_PRODUCTS_PATHS: string[] = []
 
 function readPathsFromEnv(envValue: string | undefined, fallback: string[]) {
   const paths = (envValue || '')
@@ -61,7 +63,13 @@ async function requestJson(path: string, search?: Record<string, string | number
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
   const rawUrl = `${cleanBase}/${cleanPath}`
 
-  const url = new URL(rawUrl)
+  const url = SHOULD_USE_PROXY
+    ? new URL(ADMIN_API_PROXY_PATH, window.location.origin)
+    : new URL(rawUrl)
+
+  if (SHOULD_USE_PROXY) {
+    url.searchParams.set('path', `/${cleanPath}`)
+  }
 
   Object.entries(search || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -145,6 +153,8 @@ function pickObject(payload: any): JsonRecord | null {
 }
 
 async function fetchFirstArray(paths: string[], search?: Record<string, string | number | undefined>) {
+  if (paths.length === 0) return []
+
   let lastError: unknown = null
 
   for (const path of paths) {
@@ -160,6 +170,8 @@ async function fetchFirstArray(paths: string[], search?: Record<string, string |
 }
 
 async function fetchFirstObject(paths: string[], search?: Record<string, string | number | undefined>) {
+  if (paths.length === 0) return null
+
   let lastError: unknown = null
 
   for (const path of paths) {
@@ -292,8 +304,9 @@ export async function fetchAdminEstablishments(): Promise<Establishment[]> {
 
 export async function fetchAdminEstablishmentById(id: string): Promise<Establishment | null> {
   try {
-    const item = await requestJson(`/public/establishments/${id}`)
-    return item ? normalizeEstablishment(item) : null
+    const items = await fetchAdminEstablishments()
+    const item = items.find(current => current.id === id)
+    return item || null
   } catch (error) {
     console.warn(`Admin API establishment ${id} unavailable:`, error)
     return null
@@ -332,6 +345,8 @@ export async function fetchAdminOrders(establishmentId?: string): Promise<AdminO
 }
 
 export async function fetchAdminProducts(establishmentId?: string): Promise<Product[]> {
+  if (PRODUCT_PATHS.length === 0) return []
+
   try {
     const items = await fetchFirstArray(
       PRODUCT_PATHS,
@@ -348,6 +363,8 @@ export async function fetchAdminProducts(establishmentId?: string): Promise<Prod
 }
 
 export async function fetchAdminTopProducts(limit: number = 10): Promise<AdminTopProduct[]> {
+  if (TOP_PRODUCTS_PATHS.length === 0) return []
+
   try {
     const items = await fetchFirstArray(TOP_PRODUCTS_PATHS, { limit })
     return items
