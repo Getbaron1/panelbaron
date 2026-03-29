@@ -45,7 +45,10 @@ export interface AdminOrder {
 
 async function requestJson(path: string, search?: Record<string, string | number | undefined>) {
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
-  const cleanPath = path.replace(/^\/+/, '')
+  let cleanPath = path.replace(/^\/+/, '')
+  if (!cleanPath.endsWith('/')) {
+    cleanPath += '/'
+  }
   const url = new URL(`${cleanBase}/${cleanPath}`)
 
   Object.entries(search || {}).forEach(([key, value]) => {
@@ -277,7 +280,7 @@ export async function fetchAdminOrders(establishmentId?: string): Promise<AdminO
 
 export async function fetchAdminWallet(establishmentId: string) {
   try {
-    const data = await requestJson('/financial/wallet', { establishment_id: establishmentId })
+    const data = await requestJson('/public/financial/wallet', { establishment_id: establishmentId })
     return data
   } catch (error) {
     console.error(`Admin API wallet failed for establishment ${establishmentId}:`, error)
@@ -287,7 +290,7 @@ export async function fetchAdminWallet(establishmentId: string) {
 
 export async function fetchAdminWithdrawals(establishmentId?: string) {
   try {
-    const data = await requestJson('/financial/withdrawals', establishmentId ? { establishment_id: establishmentId } : undefined)
+    const data = await requestJson('/public/financial/withdrawals', establishmentId ? { establishment_id: establishmentId } : undefined)
     return pickArray(data)
   } catch (error) {
     console.warn('Admin API withdrawals unavailable:', error)
