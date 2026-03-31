@@ -3,7 +3,6 @@ import type { Establishment, Product } from '@/integrations/supabase/types'
 // Em produção (Netlify), usar o proxy /api para evitar CORS.
 // Em dev local, usar URL direta da API.
 const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1'
-const ADMIN_API_PROXY_PATH = import.meta.env.VITE_ADMIN_API_PROXY_PATH || '/.netlify/functions/admin-api-proxy'
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || ''
 const DEFAULT_ESTABLISHMENT_PATHS = ['/admin/establishments']
 const DEFAULT_ORDER_PATHS = ['/orders']
@@ -72,17 +71,10 @@ export interface AdminWithdrawal {
 }
 
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
-  const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
-  const useProxy = Boolean(ADMIN_API_PROXY_PATH)
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
+  const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
   const rawUrl = `${cleanBase}/${cleanPath}`
-  const url = useProxy
-    ? new URL(ADMIN_API_PROXY_PATH, window.location.origin)
-    : new URL(rawUrl)
-
-  if (useProxy) {
-    url.searchParams.set('path', `/${cleanPath}`)
-  }
+  const url = new URL(rawUrl)
 
   Object.entries(search || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -95,14 +87,14 @@ async function requestJson(path: string, search?: Record<string, string | number
     Accept: 'application/json',
   }
 
-  if (!useProxy && API_TOKEN) {
+  if (API_TOKEN) {
     headers['Authorization'] = `Bearer ${API_TOKEN}`
   }
   
   try {
     const { supabase } = await import('@/integrations/supabase/client')
     const { data: { session } } = await supabase.auth.getSession()
-    if (!useProxy && session?.access_token) {
+    if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`
     }
   } catch (e) {}

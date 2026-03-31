@@ -5,7 +5,6 @@ export interface AdminSector {
 }
 
 const ADMIN_API_BASE_URL = (import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1').replace(/\/+$/, '');
-const ADMIN_API_PROXY_PATH = import.meta.env.VITE_ADMIN_API_PROXY_PATH || '/.netlify/functions/admin-api-proxy';
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || '';
 const DEFAULT_ESTABLISHMENT_ID =
   import.meta.env.VITE_ADMIN_ESTABLISHMENT_ID || '133d9a94-0ad4-49d3-a058-5467e4fe7f94';
@@ -24,29 +23,21 @@ function normalizeSector(raw: any): AdminSector | null {
 }
 
 export async function getAdminSectors(establishmentId: string = DEFAULT_ESTABLISHMENT_ID): Promise<AdminSector[]> {
-  const useProxy = Boolean(ADMIN_API_PROXY_PATH);
-  const url = useProxy
-    ? new URL(ADMIN_API_PROXY_PATH, window.location.origin)
-    : new URL(`${ADMIN_API_BASE_URL}/admin/sectors`);
-
-  if (useProxy) {
-    url.searchParams.set('path', '/admin/sectors');
-  }
-
+  const url = new URL(`${ADMIN_API_BASE_URL}/admin/sectors`);
   url.searchParams.set('establishment_id', establishmentId);
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
 
-  if (!useProxy && API_TOKEN) {
+  if (API_TOKEN) {
     headers.Authorization = `Bearer ${API_TOKEN}`;
   }
 
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const { data: { session } } = await supabase.auth.getSession();
-    if (!useProxy && session?.access_token) {
+    if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
     }
   } catch {}

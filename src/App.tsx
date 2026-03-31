@@ -16,48 +16,129 @@ import Login from './pages/Login'
 import Suporte from './pages/Suporte'
 import AnalyticsGabigol from './pages/AnalyticsGabigol'
 
-// FunÃ§Ã£o para obter role do usuÃ¡rio
-function getUserRole(): string {
+type AdminUser = {
+  id: string
+  email: string
+  nome: string
+  role: string
+}
+
+const API_BASE_URL = (import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1').replace(/\/+$/, '')
+
+function getStoredAdminUser(): AdminUser | null {
   try {
-    const userData = localStorage.getItem('baron_admin_user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      return user.role || 'comercial';
-    }
+    const userData = localStorage.getItem('baron_admin_user')
+    if (!userData) return null
+    return JSON.parse(userData) as AdminUser
   } catch {
-    // Ignora erro
+    return null
   }
-  return 'comercial';
 }
 
-// Componente para proteger rotas por role
+function getUserRole(): string {
+  return getStoredAdminUser()?.role || 'comercial'
+}
+
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
-  const userRole = getUserRole();
+  const userRole = getUserRole()
   if (!allowedRoles.includes(userRole)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" replace />
   }
-  return <>{children}</>;
+  return <>{children}</>
 }
 
-// FunÃ§Ã£o para validar credenciais contra Supabase
+async function fetchBackendProfile(accessToken: string): Promise<AdminUser | null> {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = await response.json()
+  const raw = payload?.data && typeof payload.data === 'object' ? payload.data : payload
+
+  if (!raw?.id || !raw?.email) {
+    return null
+  }
+
+  return {
+    id: String(raw.id),
+    email: String(raw.email),
+    nome: String(raw.nome || raw.name || raw.email),
+    role: String(raw.role || 'authenticated'),
+  }
+}
+
+async function fetchAdminUserByEmail(email: string): Promise<AdminUser | null> {
+  const normalizedEmail = email.trim().toLowerCase()
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id, email, nome, role, ativo')
+    .ilike('email', normalizedEmail)
+
+  if (error) {
+    return null
+  }
+
+  const item = (data || []).find((current: any) => String(current?.email || '').trim().toLowerCase() === normalizedEmail)
+
+  if (!item || item.ativo === false) {
+    return null
+  }
+
+  return {
+    id: String(item.id),
+    email: String(item.email),
+    nome: String(item.nome || item.email),
+    role: String(item.role || 'authenticated'),
+  }
+}
+
+async function resolveAuthenticatedUser(session: any): Promise<AdminUser | null> {
+  const accessToken = session?.access_token
+  const email = session?.user?.email
+
+  if (!accessToken || !email) {
+    return null
+  }
+
+  const backendUser = await fetchBackendProfile(accessToken)
+  if (backendUser) {
+    return backendUser
+  }
+
+  return await fetchAdminUserByEmail(email)
+}
+
 async function validateCredentials(email: string, password: string): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase()
+
   try {
-    const { data, error } = await supabase.functions.invoke('admin-login', {
-      body: {
-        email: email.trim().toLowerCase(),
-        password
-      }
+    await supabase.auth.signOut()
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
     })
 
-    if (error || !data?.ok || !data?.user) {
+    if (error || !data.session) {
       return false
     }
 
-    localStorage.setItem('baron_admin_user', JSON.stringify(data.user))
+    const user = await resolveAuthenticatedUser(data.session)
+    if (!user) {
+      await supabase.auth.signOut()
+      return false
+    }
 
+    localStorage.setItem('baron_admin_user', JSON.stringify(user))
     return true
-  } catch (err) {
-    console.error('Erro ao validar credenciais')
+  } catch {
     return false
   }
 }
@@ -67,10 +148,61 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const hasSession = localStorage.getItem('baron_admin_session') === 'true'
-    const user = localStorage.getItem('baron_admin_user')
-    setIsAuthenticated(hasSession && !!user)
-    setIsLoading(false)
+    let mounted = true
+
+    async function bootstrap() {
+      const { data } = await supabase.auth.getSession()
+      const session = data.session
+
+      if (!session) {
+        localStorage.removeItem('baron_admin_user')
+        localStorage.removeItem('baron_admin_session')
+        if (mounted) {
+          setIsAuthenticated(false)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      const user = await resolveAuthenticatedUser(session)
+      if (!user) {
+        await supabase.auth.signOut()
+        localStorage.removeItem('baron_admin_user')
+        localStorage.removeItem('baron_admin_session')
+        if (mounted) {
+          setIsAuthenticated(false)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      localStorage.setItem('baron_admin_user', JSON.stringify(user))
+      localStorage.setItem('baron_admin_session', 'true')
+
+      if (mounted) {
+        setIsAuthenticated(true)
+        setIsLoading(false)
+      }
+    }
+
+    void bootstrap()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        localStorage.removeItem('baron_admin_user')
+        localStorage.removeItem('baron_admin_session')
+        if (mounted) {
+          setIsAuthenticated(false)
+        }
+      }
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleLogin = async (email: string, password: string) => {
@@ -82,13 +214,13 @@ function App() {
     return success
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     localStorage.removeItem('baron_admin_user')
     localStorage.removeItem('baron_admin_session')
-    localStorage.removeItem('baron_saved_credentials') // Remover credenciais salvas para impedir login automÃ¡tico
-    // Limpar todas as chaves do localStorage relacionadas ao Supabase
-    Object.keys(localStorage).forEach(key => {
-      if ((key.includes('supabase') || key.includes('auth'))) {
+    localStorage.removeItem('baron_saved_credentials')
+    Object.keys(localStorage).forEach((key) => {
+      if (key.includes('supabase') || key.includes('auth')) {
         localStorage.removeItem(key)
       }
     })
@@ -116,21 +248,27 @@ function App() {
           <Route path="/clientes/:id" element={<ClienteDetalhes />} />
           <Route path="/estabelecimentos/:id" element={<EstabelecimentoDetalhes />} />
           <Route path="/pedidos" element={<Pedidos />} />
-          <Route path="/faturamento" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-              <Faturamento />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/faturamento"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <Faturamento />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/mapa" element={<Mapa />} />
           <Route path="/comercial" element={<Comercial />} />
           <Route path="/comercial/reunioes" element={<Reunioes />} />
           <Route path="/comercial/comissoes" element={<Comissoes />} />
           <Route path="/suporte" element={<Suporte />} />
-          <Route path="/analytics/gabigol" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin', 'viewer']}>
-              <AnalyticsGabigol />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/analytics/gabigol"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin', 'viewer']}>
+                <AnalyticsGabigol />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </DashboardLayout>
