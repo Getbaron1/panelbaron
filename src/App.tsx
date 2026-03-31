@@ -23,8 +23,6 @@ type AdminUser = {
   role: string
 }
 
-const API_BASE_URL = (import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1').replace(/\/+$/, '')
-
 function getStoredAdminUser(): AdminUser | null {
   try {
     const userData = localStorage.getItem('baron_admin_user')
@@ -45,33 +43,6 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to="/" replace />
   }
   return <>{children}</>
-}
-
-async function fetchBackendProfile(accessToken: string): Promise<AdminUser | null> {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-  })
-
-  if (!response.ok) {
-    return null
-  }
-
-  const payload = await response.json()
-  const raw = payload?.data && typeof payload.data === 'object' ? payload.data : payload
-
-  if (!raw?.id || !raw?.email) {
-    return null
-  }
-
-  return {
-    id: String(raw.id),
-    email: String(raw.email),
-    nome: String(raw.nome || raw.name || raw.email),
-    role: String(raw.role || 'authenticated'),
-  }
 }
 
 async function fetchAdminUserByEmail(email: string): Promise<AdminUser | null> {
@@ -100,16 +71,10 @@ async function fetchAdminUserByEmail(email: string): Promise<AdminUser | null> {
 }
 
 async function resolveAuthenticatedUser(session: any): Promise<AdminUser | null> {
-  const accessToken = session?.access_token
   const email = session?.user?.email
 
-  if (!accessToken || !email) {
+  if (!email) {
     return null
-  }
-
-  const backendUser = await fetchBackendProfile(accessToken)
-  if (backendUser) {
-    return backendUser
   }
 
   return await fetchAdminUserByEmail(email)
