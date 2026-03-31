@@ -3,12 +3,11 @@ import type { Establishment, Product } from '@/integrations/supabase/types'
 // Em produção (Netlify), usar o proxy /api para evitar CORS.
 // Em dev local, usar URL direta da API.
 const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://api.getbaron.com.br/v1'
-const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-const API_KEY = import.meta.env.VITE_ADMIN_API_KEY || ''
-
+const ADMIN_API_PROXY_PATH = import.meta.env.VITE_ADMIN_API_PROXY_PATH || '/.netlify/functions/admin-api-proxy'
+const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || ''
 const DEFAULT_ESTABLISHMENT_PATHS = ['/admin/establishments']
 const DEFAULT_ORDER_PATHS = ['/orders']
-const DEFAULT_PRODUCT_PATHS: string[] = []
+const DEFAULT_PRODUCT_PATHS = ['/catalog/products']
 const DEFAULT_TOP_PRODUCTS_PATHS: string[] = []
 
 function readPathsFromEnv(envValue: string | undefined, fallback: string[]) {
@@ -73,11 +72,17 @@ export interface AdminWithdrawal {
 }
 
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
-  const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
+  const useProxy = Boolean(ADMIN_API_PROXY_PATH)
+  const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
   const rawUrl = `${cleanBase}/${cleanPath}`
+  const url = useProxy
+    ? new URL(ADMIN_API_PROXY_PATH, window.location.origin)
+    : new URL(rawUrl)
 
-  const url = new URL(rawUrl)
+  if (useProxy) {
+    url.searchParams.set('path', `/${cleanPath}`)
+  }
 
   Object.entries(search || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -90,22 +95,18 @@ async function requestJson(path: string, search?: Record<string, string | number
     Accept: 'application/json',
   }
 
-  if (API_TOKEN) {
+  if (!useProxy && API_TOKEN) {
     headers['Authorization'] = `Bearer ${API_TOKEN}`
   }
   
   try {
     const { supabase } = await import('@/integrations/supabase/client')
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.access_token) {
+    if (!useProxy && session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`
     }
   } catch (e) {}
   
-  if (API_KEY) {
-    headers['x-api-key'] = API_KEY
-  }
-
   const fetchOptions: RequestInit = {
     method: options?.method || 'GET',
     headers,
@@ -346,9 +347,9 @@ export async function fetchAdminEstablishments(): Promise<Establishment[]> {
 
 export async function fetchAdminEstablishmentById(id: string): Promise<Establishment | null> {
   try {
-    const items = await fetchAdminEstablishments()
-    const item = items.find(current => current.id === id)
-    return item || null
+    const payload = await requestJson(`/admin/establishments/${id}`)
+    const item = pickObject(payload)
+    return item ? normalizeEstablishment(item) : null
   } catch (error) {
     console.warn(`Admin API establishment ${id} unavailable:`, error)
     return null
@@ -387,8 +388,6 @@ export async function fetchAdminOrders(establishmentId?: string): Promise<AdminO
 }
 
 export async function fetchAdminProducts(establishmentId?: string): Promise<Product[]> {
-  if (PRODUCT_PATHS.length === 0) return []
-
   try {
     const items = await fetchFirstArray(
       PRODUCT_PATHS,
@@ -405,7 +404,10 @@ export async function fetchAdminProducts(establishmentId?: string): Promise<Prod
 }
 
 export async function fetchAdminTopProducts(limit: number = 10): Promise<AdminTopProduct[]> {
-  if (TOP_PRODUCTS_PATHS.length === 0) return []
+  if (TOP_PRODUCTS_PATHS.length === 0) {
+    // O backend atual nao oferece rota dedicada para top products global admin.
+    return []
+  }
 
   try {
     const items = await fetchFirstArray(TOP_PRODUCTS_PATHS, { limit })
