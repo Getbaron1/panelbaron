@@ -462,6 +462,9 @@ export async function createAdminWithdrawal(establishmentId: string, walletId: s
 
 export async function fetchAdminWithdrawals(establishmentId?: string, limit: number = 20): Promise<AdminWithdrawal[]> {
   try {
+    const establishments = await fetchAdminEstablishments()
+    const establishmentsMap = new Map(establishments.map((item) => [item.id, item]))
+
     // GET /v1/financial/withdrawals?establishment_id=<uuid>&limit=20
     const searchParams: Record<string, any> = { limit }
     if (establishmentId) {
@@ -469,7 +472,19 @@ export async function fetchAdminWithdrawals(establishmentId?: string, limit: num
     }
     const data = await requestJson('/financial/withdrawals', searchParams)
     return pickArray(data)
-      .map(normalizeWithdrawal)
+      .map((item) => {
+        const normalized = normalizeWithdrawal(item)
+        const mappedEstablishment = establishmentsMap.get(normalized.establishment_id)
+
+        if (mappedEstablishment && (!normalized.establishment?.name || normalized.establishment.name === normalized.establishment_id)) {
+          normalized.establishment = {
+            id: mappedEstablishment.id,
+            name: mappedEstablishment.name,
+          }
+        }
+
+        return normalized
+      })
       .filter(item => item.id)
   } catch (error) {
     console.warn('Admin API withdrawals unavailable:', error)
