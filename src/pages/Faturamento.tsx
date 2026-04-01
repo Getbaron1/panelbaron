@@ -661,30 +661,38 @@ export default function Faturamento() {
                 </div>
               </div>
 
-              {/* Chave PIX Completa */}
-              <div className="bg-primary/10 border border-primary/20 p-5 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">Status do Saque</p>
-                <div className="flex items-center gap-3">
-                  <code className="flex-1 bg-background p-3 rounded border border-border text-sm font-mono">
-                    {detailsWithdrawal.status === 'pending' ? 'Aguardando processamento' : 'Já foi pago'}
-                  </code>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(detailsWithdrawal.id)
-                      alert('ID do saque copiado!')
-                    }}
-                    className="px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                    title="Copiar ID"
-                  >
-                    Copiar
-                  </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-primary/10 border border-primary/20 p-5 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-2">Chave PIX</p>
+                  <div className="space-y-3">
+                    <code className="block w-full bg-background p-3 rounded border border-border text-sm font-mono break-all">
+                      {detailsWithdrawal.pix_key || 'Chave PIX não informada'}
+                    </code>
+                    <button
+                      onClick={() => {
+                        if (!detailsWithdrawal.pix_key) return
+                        navigator.clipboard.writeText(detailsWithdrawal.pix_key)
+                        alert('Chave PIX copiada!')
+                      }}
+                      disabled={!detailsWithdrawal.pix_key}
+                      className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Copiar chave PIX"
+                    >
+                      Copiar chave PIX
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* ID do Saque */}
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">ID do Saque</p>
-                <p className="font-mono text-sm">{detailsWithdrawal.id}</p>
+                <div className="bg-muted/50 p-5 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-2">Status do Saque</p>
+                  <p className="font-semibold text-base mb-4">
+                    {detailsWithdrawal.status === 'pending' ? 'Aguardando processamento' : 'Pagamento concluído'}
+                  </p>
+                  <div className="border-t border-border/30 pt-4">
+                    <p className="text-xs text-muted-foreground mb-1">ID do Saque</p>
+                    <p className="font-mono text-sm break-all">{detailsWithdrawal.id}</p>
+                  </div>
+                </div>
               </div>
 
               <button
