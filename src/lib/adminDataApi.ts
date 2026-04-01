@@ -492,6 +492,27 @@ export async function fetchAdminWithdrawals(establishmentId?: string, limit: num
   }
 }
 
+export async function updateAdminWithdrawalStatus(
+  establishmentId: string,
+  withdrawalId: string,
+  status: 'paid' | 'rejected',
+  notes?: string
+) {
+  if (!establishmentId || !withdrawalId) {
+    throw new Error('Atualização de saque requer establishment_id e withdrawal_id.')
+  }
+
+  return await requestJson('/financial/withdrawals/update-status', undefined, {
+    method: 'POST',
+    body: {
+      establishment_id: establishmentId,
+      withdrawal_id: withdrawalId,
+      status,
+      notes: notes || undefined,
+    },
+  })
+}
+
 export async function createRefundAPI(orderId: string, establishmentId: string, reason: string, requesterWaiterId: string | null = null, requesterWaiterName: string | null = null) {
   if (!orderId || !establishmentId) {
     throw new Error('Estorno cliente: sempre vincular order_id + establishment_id.')

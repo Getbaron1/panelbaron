@@ -36,12 +36,9 @@ import { formatCurrency } from '@/lib/utils'
 import { 
   getDashboardStats,
   getRevenueByPeriod,
-  getWithdrawals,
-  getAuditLogsByWithdrawal,
-  updateWithdrawalStatus,
   uploadProofFile
 } from '@/lib/supabase'
-import { fetchAdminWallet, fetchAdminWithdrawals } from '@/lib/adminDataApi'
+import { fetchAdminWallet, fetchAdminWithdrawals, updateAdminWithdrawalStatus } from '@/lib/adminDataApi'
 import {
   AreaChart,
   Area,
@@ -62,21 +59,12 @@ interface Withdrawal {
   pix_key?: string | null
   requested_at: string
   paid_at?: string
-  status: 'pending' | 'paid' | 'rejected'
+  status: 'pending' | 'processing' | 'paid' | 'rejected'
   proof_url?: string
   notes?: string
   created_at: string
   updated_at: string
 }
-
-interface AuditLog {
-  id: string
-  user_name: string
-  action: string
-  created_at: string
-}
-
-const MOCK_AUDIT: AuditLog[] = []
 
 // Mock data para testes até as tabelas existirem no banco
 const MOCK_WITHDRAWALS: Withdrawal[] = [
@@ -128,9 +116,8 @@ export default function Faturamento() {
   const [stats, setStats] = useState<any>(null)
   const [revenueData, setRevenueData] = useState<any[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing'>('all')
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
@@ -185,7 +172,8 @@ export default function Faturamento() {
         proofUrl = await uploadProofFile(file, selectedWithdrawal.id, selectedWithdrawal.establishment_id)
       }
       
-      await updateWithdrawalStatus(selectedWithdrawal.id, 'paid', proofUrl)
+      const notes = proofUrl ? `Pago via PIX | comprovante: ${proofUrl}` : 'Pago via PIX'
+      await updateAdminWithdrawalStatus(selectedWithdrawal.establishment_id, selectedWithdrawal.id, 'paid', notes)
       
       setShowModal(false)
       setSelectedWithdrawal(null)
@@ -215,7 +203,7 @@ export default function Faturamento() {
   })) as any[]
   
   const pendingWithdrawals = withdrawalsWithCalculatedAmount
-    .filter(w => w.status === 'pending')
+    .filter(w => w.status === 'pending' || w.status === 'processing')
     .reduce((sum, w) => sum + w.requested_amount, 0)
   
   const paidWithdrawals = withdrawalsWithCalculatedAmount
@@ -226,11 +214,18 @@ export default function Faturamento() {
   const baronCommission = totalRevenue * 0.02
 
   // Filtrar saques
-  const filteredWithdrawals = withdrawalsWithCalculatedAmount.filter(w => {
+  const pendingList = withdrawalsWithCalculatedAmount.filter(w => w.status === 'pending' || w.status === 'processing')
+  const historyList = withdrawalsWithCalculatedAmount.filter(w => w.status === 'paid' || w.status === 'rejected')
+
+  const filteredWithdrawals = pendingList.filter(w => {
     const matchesSearch = (w.establishment?.name || w.establishment_id).toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || w.status === statusFilter
     return matchesSearch && matchesStatus
   })
+
+  const historyWithdrawals = historyList.filter(w =>
+    (w.establishment?.name || w.establishment_id).toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   // Calcular tempo desde solicitação
   const getTimeStatus = (requestedAt: string) => {
@@ -508,15 +503,22 @@ export default function Faturamento() {
       {/* Log de Auditoria */}
       <Card title="📋 Log de Auditoria" className="bg-muted/20 border-border/50">
         <div className="space-y-3 max-h-64 overflow-y-auto">
-          {auditLogs.map((log) => (
-            <div key={log.id} className="flex items-start gap-3 p-3 bg-background/50 rounded-lg">
+          {historyWithdrawals.length === 0 && (
+            <div className="text-sm text-muted-foreground">Nenhum saque pago ou rejeitado encontrado.</div>
+          )}
+          {historyWithdrawals.map((withdrawal) => (
+            <div key={withdrawal.id} className="flex items-start gap-3 p-3 bg-background/50 rounded-lg">
               <AlertCircle className="w-4 h-4 text-primary mt-1 flex-shrink-0" />
               <div className="flex-1 text-sm">
                 <p className="font-medium">
-                  <span className="text-primary">{log.user_name}</span> {log.action}
+                  <span className="text-primary">{withdrawal.establishment?.name || 'Estabelecimento sem nome'}</span>{' '}
+                  {withdrawal.status === 'paid' ? 'teve saque pago' : 'teve saque rejeitado'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(log.created_at).toLocaleString('pt-BR')}
+                  {formatCurrency(withdrawal.requested_amount ?? withdrawal.amount ?? 0)} · {withdrawal.establishment_id}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(withdrawal.updated_at || withdrawal.requested_at).toLocaleString('pt-BR')}
                 </p>
               </div>
             </div>
