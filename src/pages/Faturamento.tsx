@@ -115,10 +115,10 @@ const MOCK_WITHDRAWALS: Withdrawal[] = [
 
 export default function Faturamento() {
   const userRole = getUserRole();
-  if (userRole !== 'super_admin') {
+  if (!['admin', 'super_admin'].includes(userRole)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-muted-foreground">Acesso restrito: apenas para super_admin</div>
+        <div className="text-lg text-muted-foreground">Acesso restrito: apenas para admin e super_admin</div>
       </div>
     );
   }
