@@ -23,6 +23,22 @@ type AdminUser = {
   role: string
 }
 
+function buildFallbackUser(session: any): AdminUser | null {
+  const user = session?.user
+  const email = String(user?.email || '').trim()
+
+  if (!user?.id || !email) {
+    return null
+  }
+
+  return {
+    id: String(user.id),
+    email,
+    nome: String(user?.user_metadata?.name || email),
+    role: String(user?.user_metadata?.role || 'authenticated'),
+  }
+}
+
 function getStoredAdminUser(): AdminUser | null {
   try {
     const userData = localStorage.getItem('baron_admin_user')
@@ -74,10 +90,11 @@ async function resolveAuthenticatedUser(session: any): Promise<AdminUser | null>
   const email = session?.user?.email
 
   if (!email) {
-    return null
+    return buildFallbackUser(session)
   }
 
-  return await fetchAdminUserByEmail(email)
+  const adminUser = await fetchAdminUserByEmail(email)
+  return adminUser || buildFallbackUser(session)
 }
 
 async function validateCredentials(email: string, password: string): Promise<boolean> {
@@ -97,7 +114,6 @@ async function validateCredentials(email: string, password: string): Promise<boo
 
     const user = await resolveAuthenticatedUser(data.session)
     if (!user) {
-      await supabase.auth.signOut()
       return false
     }
 
@@ -131,7 +147,6 @@ function App() {
 
       const user = await resolveAuthenticatedUser(session)
       if (!user) {
-        await supabase.auth.signOut()
         localStorage.removeItem('baron_admin_user')
         localStorage.removeItem('baron_admin_session')
         if (mounted) {
