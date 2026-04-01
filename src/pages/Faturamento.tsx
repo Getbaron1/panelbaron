@@ -403,8 +403,10 @@ export default function Faturamento() {
                   <tr key={withdrawal.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="py-3 px-4">
                       <div>
-                        <p className="font-medium text-sm">{withdrawal.establishment?.name || withdrawal.establishment_id}</p>
-                        <p className="text-xs text-muted-foreground">{withdrawal.id}</p>
+                        <p className="font-medium text-sm">
+                          {withdrawal.establishment?.name || 'Estabelecimento sem nome'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{withdrawal.establishment_id}</p>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-sm font-semibold text-primary">
