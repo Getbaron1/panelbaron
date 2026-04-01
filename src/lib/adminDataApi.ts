@@ -308,7 +308,7 @@ function normalizeWithdrawal(raw: any): AdminWithdrawal {
     establishment: establishmentId || establishmentName
       ? {
           id: establishmentId,
-          name: establishmentName || establishmentId,
+          name: establishmentName || '',
         }
       : null,
     amount: toNumber(raw?.amount ?? raw?.requested_amount ?? raw?.valor ?? raw?.value, 0),
