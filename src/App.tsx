@@ -25,6 +25,7 @@ type AdminUser = {
 
 const ADMIN_EMAIL_ROLE_FALLBACKS: Record<string, string> = {
   'pedrocoelhowz1@gmail.com': 'admin',
+  'kaiqueaguiar3@gmail.com': 'admin',
 }
 
 function buildFallbackUser(session: any): AdminUser | null {
