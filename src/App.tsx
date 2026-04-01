@@ -23,9 +23,14 @@ type AdminUser = {
   role: string
 }
 
+const ADMIN_EMAIL_ROLE_FALLBACKS: Record<string, string> = {
+  'pedrocoelhowz1@gmail.com': 'admin',
+}
+
 function buildFallbackUser(session: any): AdminUser | null {
   const user = session?.user
   const email = String(user?.email || '').trim()
+  const normalizedEmail = email.toLowerCase()
 
   if (!user?.id || !email) {
     return null
@@ -35,7 +40,11 @@ function buildFallbackUser(session: any): AdminUser | null {
     id: String(user.id),
     email,
     nome: String(user?.user_metadata?.name || email),
-    role: String(user?.user_metadata?.role || 'authenticated'),
+    role: String(
+      user?.user_metadata?.role ||
+      ADMIN_EMAIL_ROLE_FALLBACKS[normalizedEmail] ||
+      'authenticated'
+    ),
   }
 }
 
