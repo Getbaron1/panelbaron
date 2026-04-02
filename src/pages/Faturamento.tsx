@@ -38,7 +38,7 @@ import {
   getRevenueByPeriod,
   uploadProofFile
 } from '@/lib/supabase'
-import { fetchAdminWallet, fetchAdminWithdrawals, updateAdminWithdrawalStatus } from '@/lib/adminDataApi'
+import { fetchAdminRefunds, fetchAdminWallet, fetchAdminWithdrawals, updateAdminWithdrawalStatus } from '@/lib/adminDataApi'
 import {
   AreaChart,
   Area,
@@ -62,6 +62,21 @@ interface Withdrawal {
   status: 'pending' | 'processing' | 'paid' | 'rejected'
   proof_url?: string
   notes?: string
+  created_at: string
+  updated_at: string
+}
+
+interface RefundRequest {
+  id: string
+  order_id: string
+  establishment_id: string
+  establishment?: { id: string; name: string } | null
+  amount: number
+  reason: string | null
+  status: string
+  customer_name: string | null
+  customer_phone: string | null
+  pix_key: string | null
   created_at: string
   updated_at: string
 }
@@ -116,6 +131,7 @@ export default function Faturamento() {
   const [stats, setStats] = useState<any>(null)
   const [revenueData, setRevenueData] = useState<any[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
+  const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing'>('all')
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
@@ -143,15 +159,17 @@ export default function Faturamento() {
       setLoading(true)
       setError(null)
       
-      const [statsData, revenue, withdrawalsData] = await Promise.all([
+      const [statsData, revenue, withdrawalsData, refundsData] = await Promise.all([
         getDashboardStats(),
         getRevenueByPeriod(periodo),
         fetchAdminWithdrawals(),
+        fetchAdminRefunds(),
       ])
       
       setStats(statsData)
       setRevenueData(revenue || [])
       setWithdrawals((withdrawalsData || []) as any)
+      setRefundRequests((refundsData || []) as any)
     } catch (err: any) {
       console.error('Erro ao carregar dados:', err)
       setError(err.message || 'Erro ao carregar dados de faturamento')
@@ -225,6 +243,19 @@ export default function Faturamento() {
 
   const historyWithdrawals = historyList.filter(w =>
     (w.establishment?.name || w.establishment_id).toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const filteredRefundRequests = refundRequests.filter((refund) =>
+    [
+      refund.establishment?.name || '',
+      refund.establishment_id || '',
+      refund.order_id || '',
+      refund.customer_name || '',
+      refund.reason || '',
+    ]
+      .join(' ')
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   )
 
   // Calcular tempo desde solicitação
@@ -350,6 +381,79 @@ export default function Faturamento() {
               Sem dados de faturamento
             </div>
           )}
+        </div>
+      </Card>
+
+      <Card title="Solicitações de Estorno">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Pedidos de estorno que o cliente final deve receber</p>
+            </div>
+            <Badge variant={filteredRefundRequests.length > 0 ? 'warning' : 'default'}>
+              {filteredRefundRequests.length} solicitações
+            </Badge>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Estabelecimento</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Pedido</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Cliente</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Valor</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Motivo</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solicitado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRefundRequests.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-6 px-4 text-sm text-muted-foreground text-center">
+                      Nenhuma solicitação de estorno encontrada.
+                    </td>
+                  </tr>
+                )}
+                {filteredRefundRequests.map((refund) => (
+                  <tr key={refund.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="py-3 px-4">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {refund.establishment?.name || 'Estabelecimento sem nome'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{refund.establishment_id}</p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <p className="font-mono text-sm">{refund.order_id}</p>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div>
+                        <p className="text-sm font-medium">{refund.customer_name || 'Cliente não informado'}</p>
+                        <p className="text-xs text-muted-foreground">{refund.customer_phone || refund.pix_key || '-'}</p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-sm font-semibold text-primary">
+                      {formatCurrency(refund.amount || 0)}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground max-w-[280px]">
+                      {refund.reason || 'Motivo não informado'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge variant={refund.status === 'paid' ? 'success' : refund.status === 'rejected' ? 'danger' : 'warning'}>
+                        {refund.status}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4 text-sm">
+                      {new Date(refund.created_at).toLocaleString('pt-BR')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </Card>
 

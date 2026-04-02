@@ -70,6 +70,21 @@ export interface AdminWithdrawal {
   updated_at: string
 }
 
+export interface AdminRefund {
+  id: string
+  order_id: string
+  establishment_id: string
+  establishment?: { id: string; name: string } | null
+  amount: number
+  reason: string | null
+  status: string
+  customer_name: string | null
+  customer_phone: string | null
+  pix_key: string | null
+  created_at: string
+  updated_at: string
+}
+
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
@@ -348,6 +363,43 @@ export async function fetchAdminEstablishmentById(id: string): Promise<Establish
   }
 }
 
+function normalizeRefund(raw: any, establishmentsMap?: Map<string, Establishment>): AdminRefund {
+  const establishmentId = toStringValue(
+    raw?.establishment_id,
+    raw?.store_id,
+    raw?.order?.establishment_id,
+    raw?.establishment?.id
+  )
+  const mappedEstablishment = establishmentsMap?.get(establishmentId)
+  const establishmentName = toStringValue(
+    raw?.establishment?.name,
+    raw?.store?.name,
+    raw?.establishment_name,
+    raw?.store_name,
+    mappedEstablishment?.name
+  )
+
+  return {
+    id: toStringValue(raw?.id, raw?.uuid, raw?._id),
+    order_id: toStringValue(raw?.order_id, raw?.order?.id),
+    establishment_id: establishmentId,
+    establishment: establishmentId || establishmentName
+      ? {
+          id: establishmentId,
+          name: establishmentName || mappedEstablishment?.name || '',
+        }
+      : null,
+    amount: toNumber(raw?.amount ?? raw?.refund_amount ?? raw?.total ?? raw?.value, 0),
+    reason: toStringValue(raw?.reason, raw?.refund_reason, raw?.description) || null,
+    status: toStringValue(raw?.status, raw?.state, 'pending').toLowerCase() || 'pending',
+    customer_name: toStringValue(raw?.customer_name, raw?.customer?.name) || null,
+    customer_phone: toStringValue(raw?.customer_phone, raw?.customer?.phone) || null,
+    pix_key: toStringValue(raw?.pix_key, raw?.customer_pix_key, raw?.chave_pix) || null,
+    created_at: raw?.created_at || raw?.requested_at || new Date().toISOString(),
+    updated_at: raw?.updated_at || raw?.created_at || raw?.requested_at || new Date().toISOString(),
+  }
+}
+
 export async function fetchOwnerEstablishment(ownerId: string): Promise<Establishment | null> {
   try {
     const item = await requestJson(`/establishments/owner/${ownerId}`)
@@ -541,6 +593,41 @@ export async function fetchRefundsAPI(establishmentId: string, orderIds: string)
     return await requestJson('/refunds', { establishment_id: establishmentId, order_ids: orderIds })
   } catch (error) {
     console.warn('Error fetching refunds:', error)
+    return []
+  }
+}
+
+export async function fetchAdminRefunds(limitPerEstablishment: number = 200): Promise<AdminRefund[]> {
+  try {
+    const [orders, establishments] = await Promise.all([
+      fetchAdminOrders(),
+      fetchAdminEstablishments(),
+    ])
+
+    const establishmentsMap = new Map(establishments.map((item) => [item.id, item]))
+    const orderIdsByEstablishment = new Map<string, string[]>()
+
+    orders.forEach((order) => {
+      if (!order.establishment_id || !order.id) return
+      const list = orderIdsByEstablishment.get(order.establishment_id) || []
+      list.push(order.id)
+      orderIdsByEstablishment.set(order.establishment_id, list)
+    })
+
+    const groupedRefunds = await Promise.all(
+      Array.from(orderIdsByEstablishment.entries()).map(async ([establishmentId, orderIds]) => {
+        const payload = await fetchRefundsAPI(establishmentId, orderIds.slice(0, limitPerEstablishment).join(','))
+        return pickArray(payload)
+          .map((item) => normalizeRefund(item, establishmentsMap))
+          .filter((item) => item.id)
+      })
+    )
+
+    return groupedRefunds
+      .flat()
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  } catch (error) {
+    console.warn('Admin API refunds unavailable:', error)
     return []
   }
 }
