@@ -74,7 +74,6 @@ export default function Clientes() {
   const activeCount = establishments.filter(c => c.status === 'active').length
   const pendingCount = establishments.filter(c => c.status === 'pending').length
   const inactiveCount = establishments.filter(c => c.status !== 'active' && c.status !== 'pending').length
-  const mpConnectedCount = 0 // TODO: Adicionar campo ao banco
 
   // Agrupar estabelecimentos por estado para o mapa
   const estabelecimentosPorEstado = mockEstabelecimentos.reduce((acc, est) => {
@@ -213,7 +212,7 @@ export default function Clientes() {
       </Card>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="bg-card rounded-2xl border border-border/50 p-4 text-center shadow-card">
           <p className="text-2xl font-bold text-primary">{establishments.length}</p>
           <p className="text-sm text-muted-foreground">Total</p>
@@ -226,10 +225,6 @@ export default function Clientes() {
           <p className="text-2xl font-bold text-warning">{pendingCount}</p>
           <p className="text-sm text-muted-foreground">Pendentes</p>
         </div>
-        <div className="bg-card rounded-2xl border border-border/50 p-4 text-center shadow-card">
-          <p className="text-2xl font-bold text-blue-500">{mpConnectedCount}</p>
-          <p className="text-sm text-muted-foreground">MercadoPago</p>
-        </div>
       </div>
 
       {/* Clients Table */}
@@ -241,7 +236,6 @@ export default function Clientes() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Estabelecimento</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Slug</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Contato</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">MercadoPago</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Cadastro</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Ações</th>
@@ -301,16 +295,7 @@ export default function Clientes() {
                       cliente.status === 'active' ? 'success' :
                       cliente.status === 'pending' ? 'warning' : 'default'
                     }>
-                      {cliente.status === 'active' ? 'Ativo' : 
-                       cliente.status === 'pending' ? 'Pendente' : cliente.status || 'Indefinido'}
-                    </Badge>
-                  </td>
-                  <td className="py-4 px-4">
-                    <Badge variant={
-                      cliente.status === 'active' ? 'success' :
-                      cliente.status === 'pending' ? 'warning' : 'default'
-                    }>
-                      {cliente.status === 'active' ? 'Ativo' : 
+                      {cliente.status === 'active' ? 'Ativo' :
                        cliente.status === 'pending' ? 'Pendente' : cliente.status || 'Indefinido'}
                     </Badge>
                   </td>

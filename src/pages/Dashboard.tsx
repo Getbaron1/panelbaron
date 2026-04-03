@@ -1,28 +1,21 @@
 import { useState, useEffect } from 'react'
-import { 
-  Building2, 
-  ShoppingCart, 
-  DollarSign, 
+import {
+  Building2,
+  DollarSign,
   TrendingUp,
   Users,
-  Package,
   CreditCard,
   Loader2,
-  RefreshCcw,
-  Eye,
-  Edit,
-  MoreVertical
+  RefreshCcw
 } from 'lucide-react'
 import KPICard from '@/components/dashboard/KPICard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
-import { 
-  getDashboardStats, 
-  getOrders, 
+import {
+  getDashboardStats,
   getEstablishments,
-  getRevenueByPeriod,
-  getTopProducts
+  getRevenueByPeriod
 } from '@/lib/supabase'
 import type { Establishment } from '@/integrations/supabase/types'
 import {
@@ -33,8 +26,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell
@@ -69,9 +60,7 @@ interface DashboardStats {
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [establishments, setEstablishments] = useState<Establishment[]>([])
-  const [recentOrders, setRecentOrders] = useState<any[]>([])
   const [revenueData, setRevenueData] = useState<{ date: string; value: number }[]>([])
-  const [topProducts, setTopProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedEstablishment, setSelectedEstablishment] = useState<string | null>(null)
@@ -158,12 +147,10 @@ export default function Dashboard() {
       setLoading(true)
       setError(null)
 
-      const [statsResult, establishmentsResult, ordersResult, revenueResult, topProductsResult] = await Promise.allSettled([
+      const [statsResult, establishmentsResult, revenueResult] = await Promise.allSettled([
         getDashboardStats(),
         getEstablishments(),
-        getOrders(),
-        getRevenueByPeriod(30),
-        getTopProducts(5)
+        getRevenueByPeriod(30)
       ])
 
       setStats(statsResult.status === 'fulfilled' ? statsResult.value : {
@@ -183,9 +170,7 @@ export default function Dashboard() {
         availableProducts: 0,
       })
       setEstablishments(establishmentsResult.status === 'fulfilled' ? establishmentsResult.value || [] : [])
-      setRecentOrders(ordersResult.status === 'fulfilled' ? (ordersResult.value || []).slice(0, 10) : [])
       setRevenueData(revenueResult.status === 'fulfilled' ? revenueResult.value : [])
-      setTopProducts(topProductsResult.status === 'fulfilled' ? topProductsResult.value : [])
 
       if (
         statsResult.status === 'rejected' &&
@@ -227,9 +212,9 @@ export default function Dashboard() {
   }
 
   // Filtrar dados se um estabelecimento está selecionado
-  const filteredOrders = selected 
-    ? recentOrders.filter(order => order.establishment_id === selected.id)
-    : recentOrders
+  const filteredOrders = selected
+    ? []
+    : []
 
   // Calcular stats filtrados
   const displayStats = selected ? {
@@ -382,8 +367,6 @@ export default function Dashboard() {
         />
       </div>
 
-
-
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Faturamento Chart */}
@@ -467,192 +450,6 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
-
-      {/* Second Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Produtos */}
-        <Card title="Top 5 Produtos Mais Vendidos">
-          <div className="h-64">
-            {topProducts.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" />
-                  <XAxis type="number" stroke="hsl(220 9% 46%)" />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
-                    stroke="hsl(220 9% 46%)" 
-                    width={120}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(0 0% 100%)', 
-                      border: '1px solid hsl(220 13% 91%)',
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                    formatter={(value: number, name: string) => [
-                      name === 'quantity' ? `${value} vendidos` : formatCurrency(value),
-                      name === 'quantity' ? 'Quantidade' : 'Receita'
-                    ]}
-                  />
-                  <Bar dataKey="quantity" fill="hsl(0 84% 50%)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                Sem dados de produtos vendidos
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Últimos Estabelecimentos */}
-        <Card title="Últimos Estabelecimentos Cadastrados">
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {(establishments as Establishment[]).slice(0, 10).map((est: Establishment) => (
-              <div 
-                key={est.id}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                  selectedEstablishment === est.id
-                    ? 'bg-primary/10 border-primary' 
-                    : 'bg-muted/30 border-transparent hover:border-border/50'
-                }`}
-              >
-                <div 
-                  className="flex items-center gap-3 flex-1 cursor-pointer"
-                  onClick={() => setSelectedEstablishment(est.id)}
-                >
-                  {est.logo_url ? (
-                    <img src={est.logo_url} alt={est.name} className="w-12 h-12 rounded-lg object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-6 h-6 text-primary" />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">{est.name}</p>
-                    <p className="text-xs text-muted-foreground">{est.slug}</p>
-                    <div className="flex gap-2 mt-1">
-                      <Badge variant={est.status === 'active' ? 'success' : est.status === 'pending' ? 'warning' : 'default'}>
-                        {est.status || 'pending'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Ações */}
-                <div className="flex items-center gap-2 ml-2">
-                  <button
-                    onClick={() => setSelectedEstablishment(est.id)}
-                    title="Filtrar por este estabelecimento"
-                    className={`p-2 rounded-lg transition-colors ${
-                      selectedEstablishment === est.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    <Building2 className="w-4 h-4" />
-                  </button>
-                  
-                  <button
-                    onClick={() => window.open(`/estabelecimentos/${est.id}`, '_blank')}
-                    title="Visualizar detalhes completos"
-                    className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  
-                  <button
-                    title="Editar estabelecimento"
-                    className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  
-                  <button
-                    title="Mais opções"
-                    className="p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {establishments.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">Nenhum estabelecimento cadastrado</p>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {/* Recent Orders */}
-      <Card title={selected ? `Pedidos de ${selected.name}` : "Últimos Pedidos"}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Código</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Cliente</th>
-                {!selected && (
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Estabelecimento</th>
-                )}
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Valor</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Pagamento</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Data</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="py-3 px-4 text-sm font-mono text-primary font-medium">
-                    {order.order_code || order.id.slice(0, 8)}
-                  </td>
-                  <td className="py-3 px-4 text-sm">{order.customer_name || '-'}</td>
-                  {!selectedEstablishment && (
-                    <td className="py-3 px-4 text-sm text-muted-foreground">
-                      {order.establishment?.name || '-'}
-                    </td>
-                  )}
-                  <td className="py-3 px-4 text-sm font-medium text-primary">
-                    {formatCurrency(order.total)}
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge variant={
-                      order.payment_status === 'approved' || order.payment_status === 'paid' ? 'success' :
-                      order.payment_status === 'pending' ? 'warning' : 'default'
-                    }>
-                      {order.payment_status || 'pending'}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge variant={
-                      order.status === 'completed' || order.status === 'delivered' ? 'success' :
-                      order.status === 'preparing' ? 'warning' :
-                      order.status === 'pending' ? 'default' :
-                      order.status === 'cancelled' ? 'danger' : 'default'
-                    }>
-                      {order.status || 'pending'}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-muted-foreground">
-                    {formatDateTime(order.created_at)}
-                  </td>
-                </tr>
-              ))}
-              {filteredOrders.length === 0 && (
-                <tr>
-                  <td colSpan={selected ? 6 : 7} className="py-8 text-center text-muted-foreground">
-                    Nenhum pedido encontrado
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
   )
 }
