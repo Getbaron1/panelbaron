@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { 
-  Search, 
-  Building2, 
-  MapPin, 
+import {
+  Search,
+  Building2,
+  MapPin,
   Phone,
   Eye,
   Edit,
@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatDate, formatPhone } from '@/lib/utils'
 import { getEstablishments } from '@/lib/supabase'
+import { mockEstabelecimentos, mockFaturamentoPorEstado } from '@/lib/mockData'
 import type { Establishment } from '@/integrations/supabase/types'
 
 export default function Clientes() {
@@ -75,6 +76,15 @@ export default function Clientes() {
   const inactiveCount = establishments.filter(c => c.status !== 'active' && c.status !== 'pending').length
   const mpConnectedCount = 0 // TODO: Adicionar campo ao banco
 
+  // Agrupar estabelecimentos por estado para o mapa
+  const estabelecimentosPorEstado = mockEstabelecimentos.reduce((acc, est) => {
+    if (!acc[est.estado]) {
+      acc[est.estado] = []
+    }
+    acc[est.estado].push(est)
+    return acc
+  }, {} as Record<string, typeof mockEstabelecimentos>)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -87,6 +97,89 @@ export default function Clientes() {
           <Plus className="w-4 h-4" />
           Novo Estabelecimento
         </Button>
+      </div>
+
+      {/* Distribuição Geográfica */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Distribuição Geográfica</h2>
+
+        {/* Stats por Estado */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+          {mockFaturamentoPorEstado.slice(0, 8).map((estado) => (
+            <div key={estado.estado} className="bg-card rounded-2xl border border-border/50 p-4 text-center shadow-card">
+              <p className="text-2xl font-bold text-primary">{estado.estado}</p>
+              <p className="text-xs text-muted-foreground">
+                {estabelecimentosPorEstado[estado.estado]?.length || 0} clientes
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Mapa Placeholder */}
+        <Card title="Mapa de Distribuição">
+          <div className="h-96 bg-muted/30 rounded-xl flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 opacity-10">
+              {/* SVG do Brasil simplificado */}
+              <svg viewBox="0 0 500 500" className="w-full h-full">
+                <path
+                  d="M150,100 L350,100 L400,200 L380,350 L250,450 L120,350 L100,200 Z"
+                  fill="hsl(0 84% 50%)"
+                  stroke="hsl(0 84% 50%)"
+                  strokeWidth="2"
+                />
+              </svg>
+            </div>
+
+            {/* Markers simulados */}
+            <div className="absolute" style={{ top: '30%', left: '55%' }}>
+              <div className="relative group">
+                <div className="w-4 h-4 bg-primary rounded-full animate-ping absolute"></div>
+                <div className="w-4 h-4 bg-primary rounded-full relative"></div>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card border border-border/50 px-2 py-1 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-card">
+                  SP - 3 clientes
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute" style={{ top: '35%', left: '60%' }}>
+              <div className="relative group">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping absolute"></div>
+                <div className="w-3 h-3 bg-blue-500 rounded-full relative"></div>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card border border-border/50 px-2 py-1 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-card">
+                  RJ - 1 cliente
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute" style={{ top: '40%', left: '50%' }}>
+              <div className="relative group">
+                <div className="w-3 h-3 bg-success rounded-full animate-ping absolute"></div>
+                <div className="w-3 h-3 bg-success rounded-full relative"></div>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card border border-border/50 px-2 py-1 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-card">
+                  MG - 1 cliente
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute" style={{ top: '55%', left: '45%' }}>
+              <div className="relative group">
+                <div className="w-3 h-3 bg-purple-500 rounded-full animate-ping absolute"></div>
+                <div className="w-3 h-3 bg-purple-500 rounded-full relative"></div>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card border border-border/50 px-2 py-1 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-card">
+                  RS - 1 cliente
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center z-10">
+              <MapPin className="w-16 h-16 text-primary/30 mx-auto mb-4" />
+              <p className="text-muted-foreground">Mapa interativo em desenvolvimento</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Integre com Google Maps ou Mapbox para visualização completa
+              </p>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Filters */}

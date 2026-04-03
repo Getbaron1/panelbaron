@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Building2,
   DollarSign,
-  MapPin,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -25,7 +24,6 @@ const menuItems = [
   { title: "Comercial", url: "/comercial", icon: Briefcase, roles: undefined },
   { title: "Consultor BI", url: "/analytics/gabigol", icon: BarChart3, roles: ['admin', 'super_admin', 'viewer'] as const },
   { title: "Suporte", url: "/suporte", icon: MessageCircle, roles: undefined },
-  { title: "Mapa", url: "/mapa", icon: MapPin, roles: undefined },
 ];
 
 // Função para obter o role do usuário logado
