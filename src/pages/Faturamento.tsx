@@ -38,15 +38,7 @@ import {
   getRevenueByPeriod,
   uploadProofFile
 } from '@/lib/supabase'
-import { 
-  fetchAdminRefunds, 
-  fetchAdminWallet, 
-  fetchAdminWithdrawals, 
-  updateAdminWithdrawalStatus,
-  fetchAdminOrders,
-  getPendingPixRefundOrders,
-  AdminOrder
-} from '@/lib/adminDataApi'
+import { fetchAdminRefunds, fetchAdminWallet, fetchAdminWithdrawals, updateAdminWithdrawalStatus } from '@/lib/adminDataApi'
 import {
   AreaChart,
   Area,
@@ -140,7 +132,6 @@ export default function Faturamento() {
   const [revenueData, setRevenueData] = useState<any[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
   const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([])
-  const [pendingPixRefunds, setPendingPixRefunds] = useState<AdminOrder[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing'>('all')
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
@@ -168,22 +159,17 @@ export default function Faturamento() {
       setLoading(true)
       setError(null)
       
-      const [statsData, revenue, withdrawalsData, refundsData, ordersData] = await Promise.all([
+      const [statsData, revenue, withdrawalsData, refundsData] = await Promise.all([
         getDashboardStats(),
         getRevenueByPeriod(periodo),
         fetchAdminWithdrawals(),
         fetchAdminRefunds(),
-        fetchAdminOrders(),
       ])
       
       setStats(statsData)
       setRevenueData(revenue || [])
       setWithdrawals((withdrawalsData || []) as any)
       setRefundRequests((refundsData || []) as any)
-      
-      // Filtrar pedidos com estorno PIX pendente
-      const pixRefunds = getPendingPixRefundOrders(ordersData || [])
-      setPendingPixRefunds(pixRefunds)
     } catch (err: any) {
       console.error('Erro ao carregar dados:', err)
       setError(err.message || 'Erro ao carregar dados de faturamento')
@@ -271,32 +257,6 @@ export default function Faturamento() {
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   )
-
-  // Filtrar estornos PIX pendentes pelo termo de busca
-  const filteredPixRefunds = pendingPixRefunds.filter((order) =>
-    [
-      order.establishment?.name || '',
-      order.establishment_id || '',
-      order.customer_name || '',
-      order.order_code || '',
-      order.service_issue_customer_pix_key || '',
-    ]
-      .join(' ')
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  )
-
-  // Helper para traduzir status do estorno PIX
-  const getPixRefundStatusLabel = (status: string | null) => {
-    switch (status) {
-      case 'manual_refund_requested':
-        return 'Estorno manual solicitado'
-      case 'refund_pending_customer_pix':
-        return 'Aguardando chave PIX do cliente'
-      default:
-        return status || 'Pendente'
-    }
-  }
 
   // Calcular tempo desde solicitação
   const getTimeStatus = (requestedAt: string) => {
@@ -488,71 +448,6 @@ export default function Faturamento() {
                     </td>
                     <td className="py-3 px-4 text-sm">
                       {new Date(refund.created_at).toLocaleString('pt-BR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </Card>
-
-      {/* Estornos PIX Pendentes - baseado em orders com service_issue_status pendente */}
-      <Card title="Estornos PIX Pendentes">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Pedidos aguardando estorno PIX para o cliente</p>
-            </div>
-            <Badge variant={filteredPixRefunds.length > 0 ? 'warning' : 'default'}>
-              {filteredPixRefunds.length} pendentes
-            </Badge>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Cliente</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Valor do Estorno</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Chave PIX</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPixRefunds.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-6 px-4 text-sm text-muted-foreground text-center">
-                      Nenhum estorno PIX pendente encontrado.
-                    </td>
-                  </tr>
-                )}
-                {filteredPixRefunds.map((order) => (
-                  <tr key={order.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="text-sm font-medium">{order.customer_name || 'Cliente não informado'}</p>
-                        <p className="text-xs text-muted-foreground">{order.order_code || order.id}</p>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-sm font-semibold text-primary">
-                      {formatCurrency(order.service_issue_refund_amount || order.total || 0)}
-                    </td>
-                    <td className="py-3 px-4">
-                      {order.service_issue_customer_pix_key ? (
-                        <span className="text-sm font-mono">{order.service_issue_customer_pix_key}</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground italic">Aguardando chave PIX</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={order.service_issue_status === 'refund_pending_customer_pix' ? 'warning' : 'default'}>
-                        {getPixRefundStatusLabel(order.service_issue_status)}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm">
-                      {new Date(order.created_at).toLocaleString('pt-BR')}
                     </td>
                   </tr>
                 ))}

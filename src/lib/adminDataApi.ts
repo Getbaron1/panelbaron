@@ -37,8 +37,6 @@ export interface AdminOrder {
   platform_fee: number | null
   service_fee: number | null
   service_issue_customer_pix_key: string | null
-  service_issue_refund_amount: number | null
-  service_issue_status: string | null
   status: string | null
   subtotal: number
   total: number
@@ -47,22 +45,6 @@ export interface AdminOrder {
   created_at: string
   updated_at: string
   establishment?: Pick<Establishment, 'id' | 'name' | 'slug' | 'logo_url'> | null
-}
-
-// Status de estorno PIX que indicam solicitações pendentes
-export const PENDING_PIX_REFUND_STATUSES = ['manual_refund_requested', 'refund_pending_customer_pix'] as const
-
-export type PendingPixRefundStatus = typeof PENDING_PIX_REFUND_STATUSES[number]
-
-/**
- * Filtra pedidos que possuem solicitação de estorno PIX pendente.
- * Considera pendentes: manual_refund_requested, refund_pending_customer_pix
- */
-export function getPendingPixRefundOrders(orders: AdminOrder[]): AdminOrder[] {
-  return orders.filter(order => 
-    order.service_issue_status && 
-    PENDING_PIX_REFUND_STATUSES.includes(order.service_issue_status as PendingPixRefundStatus)
-  )
 }
 
 export interface AdminTopProduct {
@@ -287,8 +269,6 @@ function normalizeOrder(raw: any, establishmentsMap?: Map<string, Establishment>
     platform_fee: toNumber(raw?.platform_fee ?? raw?.taxa_plataforma, 0),
     service_fee: toNumber(raw?.service_fee ?? raw?.taxa_servico, 0),
     service_issue_customer_pix_key: toStringValue(raw?.service_issue_customer_pix_key, raw?.pix_key, raw?.chave_pix_estorno) || null,
-    service_issue_refund_amount: toNumber(raw?.service_issue_refund_amount ?? raw?.refund_amount ?? raw?.valor_estorno, null),
-    service_issue_status: toStringValue(raw?.service_issue_status, raw?.issue_status) || null,
     status: toStringValue(raw?.status, raw?.situacao, raw?.order_status).toLowerCase() || 'pending',
     subtotal: toNumber(raw?.subtotal ?? raw?.valor_subtotal ?? raw?.amount, 0),
     total: toNumber(raw?.total ?? raw?.valor_total ?? raw?.amount_total, 0),
