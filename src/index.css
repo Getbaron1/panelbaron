@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* getbaron Admin Panel - Design System Vermelho & Branco */
+
+@layer base {
+  :root {
+    /* Core Colors */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 15%;
+
+    /* Cards & Surfaces */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+
+    /* Primary - getbaron Red */
+    --primary: 0 84% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 0 84% 96%;
+    --primary-glow: 0 84% 60%;
+
+    /* Secondary */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 25%;
+
+    /* Muted */
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 45%;
+
+    /* Accent */
+    --accent: 0 70% 95%;
+    --accent-foreground: 0 84% 45%;
+
+    /* Status Colors */
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 142 76% 94%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 38 92% 94%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 84% 50%;
+
+    /* Radius - Cartoon Tech Rounded */
+    --radius: 1rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 35%;
+    --sidebar-primary: 0 84% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 70% 97%;
+    --sidebar-accent-foreground: 0 84% 45%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 0 84% 50%;
+
+    /* Custom Shadows */
+    --shadow-card: 0 4px 24px -4px hsl(0 0% 0% / 0.06);
+    --shadow-card-hover: 0 8px 32px -4px hsl(0 0% 0% / 0.1);
+    --shadow-glow: 0 0 20px hsl(0 84% 50% / 0.15);
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 84% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 0 50% 15%;
+    --primary-glow: 0 84% 60%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 50% 15%;
+    --accent-foreground: 0 84% 65%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 142 40% 15%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 38 50% 15%;
+
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 84% 55%;
+
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 75%;
+    --sidebar-primary: 0 84% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 50% 15%;
+    --sidebar-accent-foreground: 0 84% 65%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 84% 55%;
+
+    --shadow-card: 0 4px 24px -4px hsl(0 0% 0% / 0.3);
+    --shadow-card-hover: 0 8px 32px -4px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 20px hsl(0 84% 55% / 0.25);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Card Styles */
+  .card-baron {
+    @apply bg-card rounded-2xl border border-border/50;
+    box-shadow: var(--shadow-card);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-baron:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Glow Effects */
+  .glow-primary {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Smooth Transitions */
+  .transition-baron {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Gradient Backgrounds */
+  .bg-gradient-baron {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 100%);
+  }
+
+  .bg-gradient-success {
+    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(142 76% 55%) 100%);
+  }
+
+  /* Animated Pulse */
+  .pulse-active {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* Fade up animation */
+  .animate-fade-up {
+    animation: fade-up 0.4s ease-out forwards;
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Slide in animation */
+  .animate-slide-in-left {
+    animation: slide-in-left 0.3s ease-out;
+  }
+
+  @keyframes slide-in-left {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Custom scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+/* Custom scrollbar global */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}

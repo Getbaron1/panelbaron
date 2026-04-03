@@ -1,0 +1,14 @@
+[functions.health]
+verify_jwt = false
+
+[functions.admin-login]
+verify_jwt = false
+
+[functions.analytics]
+verify_jwt = false
+
+[functions.intelligent-alerts]
+verify_jwt = false
+
+[functions.alerts-detector]
+verify_jwt = false

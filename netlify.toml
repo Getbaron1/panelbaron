@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Ignorar detecção de secrets para credenciais públicas do Supabase
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
+
+# Proxy para resolver CORS com a API GetBaron
+# Todas as chamadas /api/* do frontend serão redirecionadas para api.getbaron.com.br
+# SPA fallback (deve ser a ÚLTIMA regra)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
