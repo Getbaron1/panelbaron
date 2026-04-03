@@ -1,23 +1,23 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
-  Users,
-  ShoppingBag,
+  Building,
   DollarSign,
-  Package,
+  TrendingUp,
+  BarChart3,
+  Headphones,
   MapPin,
-  Settings,
   Crown
 } from 'lucide-react'
 
 const menuItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/clientes', icon: Users, label: 'Clientes' },
-  { path: '/pedidos', icon: ShoppingBag, label: 'Pedidos' },
   { path: '/faturamento', icon: DollarSign, label: 'Faturamento' },
-  { path: '/produtos', icon: Package, label: 'Produtos' },
+  { path: '/clientes', icon: Building, label: 'Estabelecimentos' },
+  { path: '/comercial', icon: TrendingUp, label: 'Comercial' },
+  { path: '/analytics/gabigol', icon: BarChart3, label: 'Consultor BI' },
+  { path: '/suporte', icon: Headphones, label: 'Suporte' },
   { path: '/mapa', icon: MapPin, label: 'Mapa' },
-  { path: '/configuracoes', icon: Settings, label: 'Configurações' },
 ]
 
 export default function Sidebar() {
