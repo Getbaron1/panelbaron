@@ -3,10 +3,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Building2,
-  ShoppingBag,
   DollarSign,
   MapPin,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -22,12 +20,11 @@ import getbaronLogo from "@/assets/getbaron-logo.png";
 // roles: undefined = todos podem ver, ['admin'] = apenas admin, etc.
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: undefined },
+  { title: "Faturamento", url: "/faturamento", icon: DollarSign, roles: ['admin', 'super_admin'] as const },
   { title: "Estabelecimentos", url: "/clientes", icon: Building2, roles: undefined },
-  { title: "Pedidos", url: "/pedidos", icon: ShoppingBag, roles: undefined },
   { title: "Comercial", url: "/comercial", icon: Briefcase, roles: undefined },
   { title: "Consultor BI", url: "/analytics/gabigol", icon: BarChart3, roles: ['admin', 'super_admin', 'viewer'] as const },
   { title: "Suporte", url: "/suporte", icon: MessageCircle, roles: undefined },
-  { title: "Faturamento", url: "/faturamento", icon: DollarSign, roles: ['admin', 'super_admin'] as const },
   { title: "Mapa", url: "/mapa", icon: MapPin, roles: undefined },
 ];
 
