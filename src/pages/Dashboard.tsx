@@ -11,7 +11,7 @@ import {
 import KPICard from '@/components/dashboard/KPICard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { formatCurrency, formatDateTime } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import {
   getDashboardStats,
   getEstablishments,
@@ -174,10 +174,9 @@ export default function Dashboard() {
 
       if (
         statsResult.status === 'rejected' &&
-        establishmentsResult.status === 'rejected' &&
-        ordersResult.status === 'rejected'
+        establishmentsResult.status === 'rejected'
       ) {
-        setError('API conectada, mas os endpoints de estabelecimentos/pedidos ainda nao foram configurados.')
+        setError('API conectada, mas os endpoints de estabelecimentos ainda nao foram configurados.')
       }
     } catch (err: any) {
       console.error('Erro ao carregar dashboard:', err)
@@ -212,36 +211,28 @@ export default function Dashboard() {
   }
 
   // Filtrar dados se um estabelecimento está selecionado
-  const filteredOrders = selected
-    ? []
-    : []
+  const filteredOrders: any[] = []
 
   // Calcular stats filtrados
   const displayStats = selected ? {
     totalEstablishments: 1,
     activeEstablishments: selected.status === 'active' ? 1 : 0,
     newThisMonth: 0,
-    totalOrders: filteredOrders.length,
-    completedOrders: filteredOrders.filter((o: any) => o.status === 'completed' || o.status === 'delivered').length,
-    pendingOrders: filteredOrders.filter((o: any) => o.status === 'pending').length,
-    ordersToday: filteredOrders.filter((o: any) => new Date(o.created_at).toDateString() === new Date().toDateString()).length,
-    totalRevenue: filteredOrders.reduce((acc: number, o: any) => acc + (o.total || 0), 0),
-    platformFees: calculatePlatformFees(filteredOrders),
-    revenueThisMonth: filteredOrders.filter((o: any) => new Date(o.created_at).getMonth() === new Date().getMonth()).reduce((acc: number, o: any) => acc + (o.total || 0), 0),
-    ticketMedio: filteredOrders.length > 0 ? filteredOrders.reduce((acc: number, o: any) => acc + (o.total || 0), 0) / filteredOrders.length : 0,
+    totalOrders: 0,
+    completedOrders: 0,
+    pendingOrders: 0,
+    ordersToday: 0,
+    totalRevenue: 0,
+    platformFees: 0,
+    revenueThisMonth: 0,
+    ticketMedio: 0,
     totalProducts: 0,
     availableProducts: 0,
   } : stats
 
-  // Função para calcular taxa da plataforma (4.7% cartão + 2% pix)
-  function calculatePlatformFees(orders: any[]): number {
-    return orders.reduce((total, order) => {
-      const cardAmount = order.payment_method === 'card' ? (order.total || 0) : 0
-      const pixAmount = order.payment_method === 'pix' ? (order.total || 0) : 0
-      const cardFee = cardAmount * 0.047
-      const pixFee = pixAmount * 0.02
-      return total + cardFee + pixFee
-    }, 0)
+  // Função auxiliar (mantida para compatibilidade)
+  function calculatePlatformFees(_orders: any[]): number {
+    return 0
   }
 
   // Dados para o gráfico de pizza de status dos estabelecimentos

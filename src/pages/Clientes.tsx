@@ -10,7 +10,6 @@ import {
   Trash2,
   Plus,
   Loader2,
-  CreditCard,
   ExternalLink
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
