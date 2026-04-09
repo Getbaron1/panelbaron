@@ -659,63 +659,17 @@ export async function fetchOrderIssuesAPI(establishmentId: string, orderIds: str
 
 export async function fetchAdminRefunds(limitPerEstablishment: number = 200): Promise<AdminRefund[]> {
   try {
-    const [orders, establishments] = await Promise.all([
-      fetchAdminOrders(),
-      fetchAdminEstablishments(),
-    ])
+    const orders = await fetchAdminOrders()
 
-    const ordersMap = new Map(orders.map((item) => [item.id, item]))
-    const establishmentsMap = new Map(establishments.map((item) => [item.id, item]))
-    const orderIdsByEstablishment = new Map<string, string[]>()
-
-    orders.forEach((order) => {
-      if (!order.establishment_id || !order.id) return
-      const list = orderIdsByEstablishment.get(order.establishment_id) || []
-      list.push(order.id)
-      orderIdsByEstablishment.set(order.establishment_id, list)
-    })
-
-    const groupedRefunds = await Promise.all(
-      Array.from(orderIdsByEstablishment.entries()).map(async ([establishmentId, orderIds]) => {
-        const limitedOrderIds = orderIds.slice(0, limitPerEstablishment).join(',')
-
-        try {
-          const payload = await fetchOrderIssuesAPI(establishmentId, limitedOrderIds)
-          const normalized = payload
-            .map((item) => normalizeRefundFromOrderIssue(item, ordersMap, establishmentsMap))
-            .filter((item): item is AdminRefund => item !== null)
-
-          if (normalized.length > 0) {
-            return normalized
-          }
-        } catch (error) {
-          console.warn(`Order issues unavailable for establishment ${establishmentId}:`, error)
-        }
-
-        const payload = await fetchRefundsAPI(establishmentId, limitedOrderIds)
-        return pickArray(payload)
-          .map((item) => normalizeRefund(item, establishmentsMap))
-          .filter((item) => item.id)
-      })
-    )
-
-    return groupedRefunds
-      .flat()
+    return orders
+      .filter((order) => Boolean(order.service_issue_customer_pix_key))
+      .slice(0, Math.max(limitPerEstablishment, 1) * 10)
+      .map(normalizeRefundFromOrder)
+      .filter((item): item is AdminRefund => item !== null)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   } catch (error) {
-    console.warn('Admin API refunds unavailable:', error)
-
-    try {
-      const orders = await fetchAdminOrders()
-
-      return orders
-        .map(normalizeRefundFromOrder)
-        .filter((item): item is AdminRefund => item !== null)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    } catch (fallbackError) {
-      console.warn('Admin API refunds fallback via orders unavailable:', fallbackError)
-      return []
-    }
+    console.warn('Admin refund requests unavailable via orders:', error)
+    return []
   }
 }
 
