@@ -8,9 +8,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean
 }
 
-export const Button = forwardRef<HTMLElement, ButtonProps>(
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'default', size = 'md', asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'button'
     const variants = {
       default: 'bg-muted text-foreground hover:bg-muted/80',
       outline: 'border border-border/50 bg-transparent hover:bg-muted/50',
@@ -25,15 +24,21 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(
       lg: 'px-6 py-3 text-lg',
     }
 
+    const classNames = cn(
+      'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed',
+      variants[variant],
+      sizes[size],
+      className
+    )
+
+    if (asChild) {
+      return <Slot className={classNames} {...props} />
+    }
+
     return (
-      <Comp
+      <button
         ref={ref}
-        className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed',
-          variants[variant],
-          sizes[size],
-          className
-        )}
+        className={classNames}
         {...props}
       />
     )
