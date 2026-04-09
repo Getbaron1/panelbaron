@@ -6,6 +6,7 @@ const ADMIN_API_BASE_URL = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://a
 const API_TOKEN = import.meta.env.VITE_ADMIN_API_TOKEN || ''
 const DEFAULT_ESTABLISHMENT_PATHS = ['/admin/establishments']
 const DEFAULT_ORDER_PATHS = ['/orders']
+const DEFAULT_ORDER_ISSUE_PATHS = ['/order-issues']
 const DEFAULT_PRODUCT_PATHS = ['/catalog/products']
 const DEFAULT_TOP_PRODUCTS_PATHS: string[] = []
 
@@ -20,6 +21,7 @@ function readPathsFromEnv(envValue: string | undefined, fallback: string[]) {
 
 const ESTABLISHMENT_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_ESTABLISHMENTS_PATHS, DEFAULT_ESTABLISHMENT_PATHS)
 const ORDER_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_ORDERS_PATHS, DEFAULT_ORDER_PATHS)
+const ORDER_ISSUE_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_ORDER_ISSUES_PATHS, DEFAULT_ORDER_ISSUE_PATHS)
 const PRODUCT_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_PRODUCTS_PATHS, DEFAULT_PRODUCT_PATHS)
 const TOP_PRODUCTS_PATHS = readPathsFromEnv(import.meta.env.VITE_ADMIN_TOP_PRODUCTS_PATHS, DEFAULT_TOP_PRODUCTS_PATHS)
 
@@ -630,6 +632,31 @@ export async function fetchRefundsAPI(establishmentId: string, orderIds: string)
   }
 }
 
+export async function fetchOrderIssuesAPI(establishmentId: string, orderIds: string) {
+  const orderIssueSearches = [
+    { establishment_id: establishmentId, order_ids: orderIds, action: 'request_pix_refund' },
+    { establishment_id: establishmentId, order_ids: orderIds, type: 'request_pix_refund' },
+    { establishment_id: establishmentId, order_ids: orderIds },
+    { establishment_id: establishmentId, action: 'request_pix_refund' },
+    { establishment_id: establishmentId },
+  ]
+
+  let lastError: unknown = null
+
+  for (const path of ORDER_ISSUE_PATHS) {
+    for (const search of orderIssueSearches) {
+      try {
+        const payload = await requestJson(path, search)
+        return pickArray(payload)
+      } catch (error) {
+        lastError = error
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Nenhum endpoint de order issues respondeu')
+}
+
 export async function fetchAdminRefunds(limitPerEstablishment: number = 200): Promise<AdminRefund[]> {
   try {
     const [orders, establishments] = await Promise.all([
@@ -637,6 +664,7 @@ export async function fetchAdminRefunds(limitPerEstablishment: number = 200): Pr
       fetchAdminEstablishments(),
     ])
 
+    const ordersMap = new Map(orders.map((item) => [item.id, item]))
     const establishmentsMap = new Map(establishments.map((item) => [item.id, item]))
     const orderIdsByEstablishment = new Map<string, string[]>()
 
@@ -649,7 +677,22 @@ export async function fetchAdminRefunds(limitPerEstablishment: number = 200): Pr
 
     const groupedRefunds = await Promise.all(
       Array.from(orderIdsByEstablishment.entries()).map(async ([establishmentId, orderIds]) => {
-        const payload = await fetchRefundsAPI(establishmentId, orderIds.slice(0, limitPerEstablishment).join(','))
+        const limitedOrderIds = orderIds.slice(0, limitPerEstablishment).join(',')
+
+        try {
+          const payload = await fetchOrderIssuesAPI(establishmentId, limitedOrderIds)
+          const normalized = payload
+            .map((item) => normalizeRefundFromOrderIssue(item, ordersMap, establishmentsMap))
+            .filter((item): item is AdminRefund => item !== null)
+
+          if (normalized.length > 0) {
+            return normalized
+          }
+        } catch (error) {
+          console.warn(`Order issues unavailable for establishment ${establishmentId}:`, error)
+        }
+
+        const payload = await fetchRefundsAPI(establishmentId, limitedOrderIds)
         return pickArray(payload)
           .map((item) => normalizeRefund(item, establishmentsMap))
           .filter((item) => item.id)
@@ -673,6 +716,63 @@ export async function fetchAdminRefunds(limitPerEstablishment: number = 200): Pr
       console.warn('Admin API refunds fallback via orders unavailable:', fallbackError)
       return []
     }
+  }
+}
+
+function normalizeRefundFromOrderIssue(raw: any, ordersMap?: Map<string, AdminOrder>, establishmentsMap?: Map<string, Establishment>): AdminRefund | null {
+  const orderId = toStringValue(raw?.order_id, raw?.order?.id, raw?.pedido_id, raw?.reference_id)
+  const linkedOrder = orderId ? ordersMap?.get(orderId) : undefined
+  const establishmentId = toStringValue(
+    raw?.establishment_id,
+    raw?.establishment?.id,
+    raw?.order?.establishment_id,
+    linkedOrder?.establishment_id
+  )
+  const mappedEstablishment = establishmentsMap?.get(establishmentId)
+  const establishmentName = toStringValue(
+    raw?.establishment?.name,
+    raw?.establishment_name,
+    raw?.store_name,
+    linkedOrder?.establishment?.name,
+    mappedEstablishment?.name
+  )
+  const pixKey = toStringValue(
+    raw?.pix_key,
+    raw?.customer_pix_key,
+    raw?.metadata?.pix_key,
+    raw?.payload?.pix_key,
+    linkedOrder?.service_issue_customer_pix_key
+  ) || null
+
+  if (!orderId || !establishmentId) {
+    return null
+  }
+
+  return {
+    id: toStringValue(raw?.id, raw?.uuid, raw?._id, `order-issue-${orderId}`),
+    order_id: orderId,
+    establishment_id: establishmentId,
+    establishment: establishmentId || establishmentName
+      ? {
+          id: establishmentId,
+          name: establishmentName || '',
+        }
+      : null,
+    amount: toNumber(raw?.amount ?? raw?.refund_amount ?? linkedOrder?.total ?? linkedOrder?.subtotal, 0),
+    reason: toStringValue(
+      raw?.reason,
+      raw?.description,
+      raw?.message,
+      raw?.metadata?.reason,
+      raw?.payload?.reason,
+      linkedOrder?.notes
+    ) || 'Solicitacao de estorno registrada em order issue',
+    status: toStringValue(raw?.status, raw?.state, raw?.situation, 'requested').toLowerCase() || 'requested',
+    customer_name: toStringValue(raw?.customer_name, raw?.customer?.name, linkedOrder?.customer_name) || null,
+    customer_phone: toStringValue(raw?.customer_phone, raw?.customer?.phone, linkedOrder?.customer_phone) || null,
+    pix_key: pixKey,
+    created_at: raw?.created_at || raw?.requested_at || raw?.updated_at || linkedOrder?.updated_at || linkedOrder?.created_at || new Date().toISOString(),
+    updated_at: raw?.updated_at || raw?.created_at || linkedOrder?.updated_at || linkedOrder?.created_at || new Date().toISOString(),
   }
 }
 
