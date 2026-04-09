@@ -85,6 +85,32 @@ export interface AdminRefund {
   updated_at: string
 }
 
+function normalizeRefundFromOrder(raw: AdminOrder): AdminRefund | null {
+  if (!raw.id || !raw.establishment_id || !raw.service_issue_customer_pix_key) {
+    return null
+  }
+
+  return {
+    id: `order-issue-${raw.id}`,
+    order_id: raw.id,
+    establishment_id: raw.establishment_id,
+    establishment: raw.establishment
+      ? {
+          id: raw.establishment.id,
+          name: raw.establishment.name,
+        }
+      : null,
+    amount: toNumber(raw.total ?? raw.subtotal, 0),
+    reason: raw.notes || 'Solicitacao de estorno registrada no pedido',
+    status: 'requested',
+    customer_name: raw.customer_name || null,
+    customer_phone: raw.customer_phone || null,
+    pix_key: raw.service_issue_customer_pix_key,
+    created_at: raw.updated_at || raw.created_at || new Date().toISOString(),
+    updated_at: raw.updated_at || raw.created_at || new Date().toISOString(),
+  }
+}
+
 async function requestJson(path: string, search?: Record<string, string | number | undefined>, options?: { method?: string; body?: any }) {
   const cleanBase = ADMIN_API_BASE_URL.replace(/\/+$/, '')
   const cleanPath = path.replace(/^\/+/, '').replace(/\/+$/, '')
@@ -635,7 +661,18 @@ export async function fetchAdminRefunds(limitPerEstablishment: number = 200): Pr
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   } catch (error) {
     console.warn('Admin API refunds unavailable:', error)
-    return []
+
+    try {
+      const orders = await fetchAdminOrders()
+
+      return orders
+        .map(normalizeRefundFromOrder)
+        .filter((item): item is AdminRefund => item !== null)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    } catch (fallbackError) {
+      console.warn('Admin API refunds fallback via orders unavailable:', fallbackError)
+      return []
+    }
   }
 }
 
