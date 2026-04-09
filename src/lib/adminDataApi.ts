@@ -109,7 +109,7 @@ async function requestJson(path: string, search?: Record<string, string | number
   try {
     const { supabase } = await import('@/integrations/supabase/client')
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.access_token) {
+    if (!API_TOKEN && session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`
     }
   } catch (e) {}
@@ -144,7 +144,14 @@ async function requestJson(path: string, search?: Record<string, string | number
     throw new Error(`API ${response.status} ao acessar ${path}${suffix}`)
   }
 
-  return response.json()
+  const payload = await response.json()
+
+  if (payload && typeof payload === 'object' && payload.success === false) {
+    const details = payload?.error || payload?.message || payload?.detail || 'Erro desconhecido na API'
+    throw new Error(`API respondeu com falha ao acessar ${path}: ${details}`)
+  }
+
+  return payload
 }
 
 function pickArray(payload: any): any[] {

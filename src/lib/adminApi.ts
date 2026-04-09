@@ -37,7 +37,7 @@ export async function getAdminSectors(establishmentId: string = DEFAULT_ESTABLIS
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
+    if (!API_TOKEN && session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
     }
   } catch {}
