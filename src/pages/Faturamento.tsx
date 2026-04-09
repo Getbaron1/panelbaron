@@ -36,6 +36,7 @@ import { formatCurrency } from '@/lib/utils'
 import { 
   getDashboardStats,
   getRevenueByPeriod,
+  updateOrderRefundProof,
   uploadProofFile
 } from '@/lib/supabase'
 import { fetchAdminRefunds, fetchAdminWallet, fetchAdminWithdrawals, updateAdminWithdrawalStatus } from '@/lib/adminDataApi'
@@ -77,6 +78,7 @@ interface RefundRequest {
   customer_name: string | null
   customer_phone: string | null
   pix_key: string | null
+  proof_url?: string | null
   created_at: string
   updated_at: string
 }
@@ -141,6 +143,7 @@ export default function Faturamento() {
   const [walletValue, setWalletValue] = useState<number | null>(null)
   const [walletLoading, setWalletLoading] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [uploadingRefundId, setUploadingRefundId] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -202,6 +205,28 @@ export default function Faturamento() {
       alert('Erro ao confirmar pagamento: ' + err.message)
     } finally {
       setUploadingFile(false)
+    }
+  }
+
+  async function handleRefundProofUpload(refund: RefundRequest, file?: File) {
+    if (!file) return
+
+    try {
+      setUploadingRefundId(refund.id)
+      const proofUrl = await uploadProofFile(file, `refund-${refund.order_id}`, refund.establishment_id)
+
+      if (!proofUrl) {
+        throw new Error('Nao foi possivel enviar o comprovante')
+      }
+
+      await updateOrderRefundProof(refund.order_id, proofUrl)
+      await loadData()
+      alert('Comprovante de estorno anexado com sucesso!')
+    } catch (err: any) {
+      console.error('Erro ao anexar comprovante do estorno:', err)
+      alert('Erro ao anexar comprovante do estorno: ' + (err.message || 'erro desconhecido'))
+    } finally {
+      setUploadingRefundId(null)
     }
   }
 
@@ -406,12 +431,13 @@ export default function Faturamento() {
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Motivo</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solicitado em</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Comprovante</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRefundRequests.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-6 px-4 text-sm text-muted-foreground text-center">
+                    <td colSpan={8} className="py-6 px-4 text-sm text-muted-foreground text-center">
                       Nenhuma solicitação de estorno encontrada.
                     </td>
                   </tr>
@@ -442,12 +468,51 @@ export default function Faturamento() {
                       {refund.reason || 'Motivo não informado'}
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant={refund.status === 'paid' ? 'success' : refund.status === 'rejected' ? 'danger' : 'warning'}>
+                      <Badge variant={refund.status === 'paid' || refund.status === 'completed' ? 'success' : refund.status === 'rejected' ? 'danger' : 'warning'}>
                         {refund.status}
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-sm">
                       {new Date(refund.created_at).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        {refund.proof_url ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(refund.proof_url!, '_blank')}
+                          >
+                            <Eye className="w-4 h-4" />
+                            Ver comprovante
+                          </Button>
+                        ) : (
+                          <label className="inline-flex">
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleRefundProofUpload(refund, e.target.files?.[0])}
+                              disabled={uploadingRefundId === refund.id}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                              disabled={uploadingRefundId === refund.id}
+                            >
+                              <span>
+                                {uploadingRefundId === refund.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Upload className="w-4 h-4" />
+                                )}
+                                Anexar comprovante
+                              </span>
+                            </Button>
+                          </label>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

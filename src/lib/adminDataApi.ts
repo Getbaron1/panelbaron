@@ -83,14 +83,22 @@ export interface AdminRefund {
   customer_name: string | null
   customer_phone: string | null
   pix_key: string | null
+  proof_url?: string | null
   created_at: string
   updated_at: string
+}
+
+function extractRefundProofUrl(notes: string | null | undefined) {
+  const match = String(notes || '').match(/Comprovante de estorno:\s*(https?:\/\/\S+)/i)
+  return match?.[1] || null
 }
 
 function normalizeRefundFromOrder(raw: AdminOrder): AdminRefund | null {
   if (!raw.id || !raw.establishment_id || !raw.service_issue_customer_pix_key) {
     return null
   }
+
+  const proofUrl = extractRefundProofUrl(raw.notes)
 
   return {
     id: `order-issue-${raw.id}`,
@@ -104,10 +112,11 @@ function normalizeRefundFromOrder(raw: AdminOrder): AdminRefund | null {
       : null,
     amount: toNumber(raw.total ?? raw.subtotal, 0),
     reason: raw.notes || 'Solicitacao de estorno registrada no pedido',
-    status: 'requested',
+    status: proofUrl ? 'completed' : 'requested',
     customer_name: raw.customer_name || null,
     customer_phone: raw.customer_phone || null,
     pix_key: raw.service_issue_customer_pix_key,
+    proof_url: proofUrl,
     created_at: raw.updated_at || raw.created_at || new Date().toISOString(),
     updated_at: raw.updated_at || raw.created_at || new Date().toISOString(),
   }

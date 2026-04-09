@@ -133,6 +133,35 @@ export async function updateOrderStatus(id: string, status: string) {
   return data
 }
 
+export async function updateOrderRefundProof(orderId: string, proofUrl: string) {
+  const { data: currentOrder, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, notes')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError) throw fetchError
+
+  const currentNotes = String(currentOrder?.notes || '').trim()
+  const proofLine = `Comprovante de estorno: ${proofUrl}`
+  const statusLine = 'Status do estorno: completed'
+  const preservedNotes = currentNotes
+    .split('\n')
+    .filter((line) => line.trim() && !line.startsWith('Comprovante de estorno:') && !line.startsWith('Status do estorno:'))
+
+  const nextNotes = [...preservedNotes, proofLine, statusLine].join('\n')
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ notes: nextNotes, updated_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 // ==================== PRODUCTS ====================
 
 export async function getProducts(establishmentId?: string) {
